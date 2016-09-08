@@ -2,8 +2,9 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include "firmware.h"
+#include "./import/firmware.h"
 #include "serial.h"
+#include "robot.h"
 
 char testbuf[256];
 
