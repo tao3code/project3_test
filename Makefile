@@ -1,8 +1,16 @@
-SRC := main.c serial.c
-HEADER := serial.h robot.h
-LDFLAG := -lpthread
+src=$(wildcard *.c)
+objs:=$(patsubst %.c,%.o,$(src))
 
-project3.elf: $(SRC) $(HEADER) 
-	gcc $(SRC) $(LDFLAG) -Wall -o project3.elf 
+CC := gcc
+LDFLAGS := -lpthread
+CFLAGS := -Iinclude -Wall
+
+project3.elf: $(objs) 
+	$(CC) $(objs) $(LDFLAGS) -o project3.elf
+
+%.d: %.c
+	$(CC) -M $(CFLAGS) $< >$@ 
 clean:
-	rm -f *.elf 
+	rm -f *.elf *.o *.d
+
+-include $(src:.c=.d)

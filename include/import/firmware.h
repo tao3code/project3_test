@@ -43,7 +43,13 @@
 #define MESSAGE_B	"L foot OUTER, ID:B FAIL:\x8\x8 SUM:\x8\x8\n\r"
 #define MESSAGE_C	"L foot INNER, ID:C FAIL:\x8\x8 SUM:\x8\x8\n\r"
 
-
+#define MESSAGE_ERR		"ERR:\x8\n\r"
+#define MESSAGE_VOL		"VOL:\x8\n\r"	
+#define MESSAGE_AIR		"AIR:\x8\n\r"
+#define MESSAGE_GYRO	"ACC_XYZ:\x8\x8 \x8\x8 \x8\x8\n\r" \
+					  	"THERMAL:\x8\x8\n\r"				\
+					  	"GYR_XYZ:\x8\x8 \x8\x8 \x8\x8\n\r"
+#define MESSAGE_ENC		"ENC(\x8):\x8\x8\n\r"	
 /* return walue for CMD_GETERR */
 #define ENOERR	0
 #define ENOCMD	1

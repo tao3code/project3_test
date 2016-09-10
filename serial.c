@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
@@ -24,7 +25,9 @@ void send_cmd(const char *cmd)
 	pthread_mutex_unlock(&mutex);
 }
 
-int sent_cmd_read_response(const char *cmd, char *buf, int len)
+static char sbuf[256];
+ 
+int sent_cmd_read_response(const char *in, char **out)
 {
 	int ret;
 	int readed;
@@ -33,7 +36,7 @@ int sent_cmd_read_response(const char *cmd, char *buf, int len)
 
 	pthread_mutex_lock(&mutex);
 	tcflush(serial_fd, TCIOFLUSH);
-	write(serial_fd, cmd, strlen(cmd));
+	write(serial_fd, in, strlen(in));
 	tcdrain(serial_fd);
 
 	FD_ZERO(&fs_read);
@@ -56,10 +59,10 @@ int sent_cmd_read_response(const char *cmd, char *buf, int len)
 	}
 
 	readed = 0;
-	memset(buf, 0, len);
+	memset(sbuf, 0, sizeof(sbuf));
 
 	do {
-		readed += read(serial_fd, buf + readed, 256);
+		readed += read(serial_fd, &sbuf[readed], sizeof(sbuf));
 		FD_ZERO(&fs_read);
 		FD_SET(serial_fd, &fs_read);
 		timeout.tv_sec = BUF_TIMEOUT_SEC;
@@ -69,6 +72,15 @@ int sent_cmd_read_response(const char *cmd, char *buf, int len)
 	while (ret > 0);
 
 	pthread_mutex_unlock(&mutex);
+
+	*out = malloc(readed);
+	if (!*out) {
+		printf("no memory\n");
+		return -1;
+	}
+
+	memcpy(*out, sbuf, readed); 
+
 	return readed;
 }
 
@@ -78,6 +90,7 @@ int serial_init(void)
 
 	serial_fd = open(TTYDEV, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (serial_fd < 0) {
+		err = -1;
 		perror("open:");
 		goto open_serial;
 	}
