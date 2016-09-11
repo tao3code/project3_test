@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -6,35 +5,31 @@
 #include <termios.h>
 #include <string.h>
 #include <sys/time.h>
-
-#define TTYDEV	"/dev/ttyUSB0"
-#define RES_TIMEOUT_SEC	1
-#define RES_TIMEOUT_MS 0
-#define BUF_TIMEOUT_SEC 0
-#define BUF_TIMEOUT_MS  5000
+#include <serial.h>
+#include <log_project3.h>
 
 static int serial_fd = -1;
 static struct termios options;
-static pthread_mutex_t mutex;
-static pthread_mutexattr_t mattr;
+static pthread_mutex_t mtx_s;
+static pthread_mutexattr_t mat_s;
 
 void send_cmd(const char *cmd)
 {
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&mtx_s);
 	write(serial_fd, cmd, strlen(cmd));
-	pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&mtx_s);
 }
 
 static char sbuf[256];
  
-int sent_cmd_read_response(const char *in, char **out)
+int sent_cmd_alloc_response(const char *in, char **out)
 {
 	int ret;
 	int readed;
 	fd_set fs_read;
 	struct timeval timeout;
 
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&mtx_s);
 	tcflush(serial_fd, TCIOFLUSH);
 	write(serial_fd, in, strlen(in));
 	tcdrain(serial_fd);
@@ -47,14 +42,14 @@ int sent_cmd_read_response(const char *in, char **out)
 
 	ret = select(serial_fd + 1, &fs_read, NULL, NULL, &timeout);
 	if (ret < 0) {
-		printf("select err:%d\n", ret);
-		pthread_mutex_unlock(&mutex);
+		log_err();	
+		pthread_mutex_unlock(&mtx_s);
 		return ret;
 	}
 
 	if (ret == 0) {
-		printf("select timeout\n");
-		pthread_mutex_unlock(&mutex);
+		log_info("Time out:%s\n", in);
+		pthread_mutex_unlock(&mtx_s);
 		return ret;
 	}
 
@@ -71,16 +66,19 @@ int sent_cmd_read_response(const char *in, char **out)
 	}
 	while (ret > 0);
 
-	pthread_mutex_unlock(&mutex);
+	if (readed == 0) {
+		pthread_mutex_unlock(&mtx_s);
+		return 0;
+	}
 
 	*out = malloc(readed);
 	if (!*out) {
-		printf("no memory\n");
+		log_err();
 		return -1;
 	}
-
+	memset(*out, 0, readed);
 	memcpy(*out, sbuf, readed); 
-
+	pthread_mutex_unlock(&mtx_s);
 	return readed;
 }
 
@@ -91,40 +89,45 @@ int serial_init(void)
 	serial_fd = open(TTYDEV, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (serial_fd < 0) {
 		err = -1;
-		perror("open:");
+		log_err();
 		goto open_serial;
 	}
 
 	tcgetattr(serial_fd, &options);
+	/*
 	options.c_cflag |= (CLOCAL | CREAD);
 	options.c_cflag &= ~CSIZE;
 	options.c_cflag &= ~CRTSCTS;
 	options.c_cflag |= CS8;
 	options.c_cflag &= ~CSTOPB;
-	options.c_iflag |= IGNPAR;
+	*/
+	options.c_cflag = 0;
+	//options.c_iflag |= IGNPAR;
+	//options.c_iflag &= ~IXOFF;
+	options.c_iflag = 0;
 	options.c_oflag = 0;
 	options.c_lflag = 0;
 	cfsetspeed(&options, B115200);
 	tcsetattr(serial_fd, TCSANOW, &options);
 	tcflush(serial_fd, TCIOFLUSH);
 
-	err = pthread_mutexattr_init(&mattr);
+	err = pthread_mutexattr_init(&mat_s);
 	if (err) {
-		perror("init mutex attribute:");
+		log_err();
 		goto init_mattr;
 	}
 
-	err = pthread_mutex_init(&mutex, &mattr);
+	err = pthread_mutex_init(&mtx_s, &mat_s);
 	if (err) {
-		perror("init mutex:");
+		log_err();
 		goto init_mutex;
 	}
 
 	return 0;
 
-	pthread_mutex_destroy(&mutex);
+	pthread_mutex_destroy(&mtx_s);
  init_mutex:
-	pthread_mutexattr_destroy(&mattr);
+	pthread_mutexattr_destroy(&mat_s);
  init_mattr:
 	close(serial_fd);
  open_serial:
@@ -133,7 +136,7 @@ int serial_init(void)
 
 void serial_close(void)
 {
-	pthread_mutex_destroy(&mutex);
-	pthread_mutexattr_destroy(&mattr);
+	pthread_mutex_destroy(&mtx_s);
+	pthread_mutexattr_destroy(&mat_s);
 	close(serial_fd);
 }

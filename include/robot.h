@@ -2,7 +2,6 @@
 #define ROBOT_H
 
 struct cylinder_info {
-	char *name;
 	char id;
 	char force;
 	union {
@@ -11,9 +10,11 @@ struct cylinder_info {
 			unsigned char raw[2];
 		};
 	};
+	char *msg;
 };
 
 struct interface_info {
+	char id;
 	unsigned char vol;
 	unsigned char pre;
 	union {
@@ -30,9 +31,10 @@ struct interface_info {
 			unsigned char raw[14];
 		};
 	};
+	char *msg;
 };
 
-int test_robot(void);
+void test_robot(void);
 int update_voltage(void);
 unsigned char get_voltage(void);
 

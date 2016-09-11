@@ -6,30 +6,30 @@
 #include <import/firmware.h>
 #include <serial.h>
 #include <robot.h>
+#include <log_project3.h>
 
 char testbuf[256];
 
 int main(int argc, const char *argv[])
 {
 	int err;
-	char *msg;
-	int len;
-	char ch;
+		
+	err = log_open();
+	if (err)
+		return -1;	
+	log_info("Build virsion: %s,%s\n", __DATE__, __TIME__);
 
 	err = serial_init();
 	if (err) 
 		goto open_serial;
-	do {
-	len = sent_cmd_read_response(">0 report;", &msg);
-	printf("read %d\n", len);
-	if (msg) {	
-		printf("%s", msg);
-		free(msg);
-	}
-	ch = getchar();
-	} while(ch != 'x');
+
+	log_info("Open %s\n", TTYDEV);
+
+	test_robot();
+	update_voltage();
 
 	serial_close();
+	log_close();
  open_serial:
 	return 0;
 }
