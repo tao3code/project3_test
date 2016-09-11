@@ -27,7 +27,10 @@ int main(int argc, const char *argv[])
 
 	test_robot();
 	update_voltage();
-
+	update_presure();
+	update_gyroscope();
+	update_motion_state();
+	
 	serial_close();
 	log_close();
  open_serial:

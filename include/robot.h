@@ -4,19 +4,19 @@
 struct cylinder_info {
 	char id;
 	char force;
+	char type;
 	union {
 		unsigned short len;
 		struct {
-			unsigned char raw[2];
+			unsigned char raw[3];
 		};
 	};
-	char *msg;
 };
 
 struct interface_info {
 	char id;
 	unsigned char vol;
-	unsigned char pre;
+	unsigned char air;
 	union {
 		struct {
 			int short gz;
@@ -31,11 +31,13 @@ struct interface_info {
 			unsigned char raw[14];
 		};
 	};
-	char *msg;
 };
 
 void test_robot(void);
 int update_voltage(void);
-unsigned char get_voltage(void);
+int update_presure(void);
+int update_gyroscope(void);
+int update_cylinder_len(int index);
+int update_motion_state(void);
 
 #endif

@@ -22,12 +22,15 @@ void send_cmd(const char *cmd)
 
 static char sbuf[256];
  
-int sent_cmd_alloc_response(const char *in, char **out)
+char *sent_cmd_alloc_response(const char *in, int *len)
 {
 	int ret;
 	int readed;
 	fd_set fs_read;
 	struct timeval timeout;
+	char *out;
+
+	*len = 0;
 
 	pthread_mutex_lock(&mtx_s);
 	tcflush(serial_fd, TCIOFLUSH);
@@ -44,13 +47,13 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	if (ret < 0) {
 		log_err();	
 		pthread_mutex_unlock(&mtx_s);
-		return ret;
+		return 0;
 	}
 
 	if (ret == 0) {
 		log_info("Time out:%s\n", in);
 		pthread_mutex_unlock(&mtx_s);
-		return ret;
+		return 0;
 	}
 
 	readed = 0;
@@ -71,15 +74,17 @@ int sent_cmd_alloc_response(const char *in, char **out)
 		return 0;
 	}
 
-	*out = malloc(readed);
-	if (!*out) {
+	out = malloc(readed);
+	if (!out) {
 		log_err();
-		return -1;
+		return 0;
 	}
-	memset(*out, 0, readed);
-	memcpy(*out, sbuf, readed); 
+	memset(out, 0, readed);
+	memcpy(out, sbuf, readed); 
 	pthread_mutex_unlock(&mtx_s);
-	return readed;
+
+	*len = readed;
+	return out;
 }
 
 int serial_init(void)
