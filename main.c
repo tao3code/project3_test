@@ -7,13 +7,13 @@
 #include <serial.h>
 #include <robot.h>
 #include <log_project3.h>
-
-char testbuf[256];
+#include <curses.h>
+#include <input_cmd.h>
 
 int main(int argc, const char *argv[])
 {
 	int err;
-		
+	
 	err = log_open();
 	if (err)
 		return -1;	
@@ -22,15 +22,13 @@ int main(int argc, const char *argv[])
 	err = serial_init();
 	if (err) 
 		goto open_serial;
-
 	log_info("Open %s\n", TTYDEV);
 
-	test_robot();
-	update_voltage();
-	update_presure();
-	update_gyroscope();
-	update_motion_state();
+	open_scr();
+
+	cmd_loop();
 	
+	close_scr();
 	serial_close();
 	log_close();
  open_serial:

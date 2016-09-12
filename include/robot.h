@@ -34,10 +34,16 @@ struct interface_info {
 };
 
 void test_robot(void);
+
 int update_voltage(void);
 int update_presure(void);
 int update_gyroscope(void);
+void update_control_state(void);
+
 int update_cylinder_len(int index);
-int update_motion_state(void);
+void update_motion_state(void);
+
+const struct cylinder_info *get_cylinder_info(int index);
+const struct interface_info *get_interface_info(void); 
 
 #endif

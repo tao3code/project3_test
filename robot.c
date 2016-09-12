@@ -216,6 +216,13 @@ int update_gyroscope(void)
 
 }
 
+void update_control_state(void)
+{
+	update_voltage();
+	update_presure();
+	update_gyroscope();
+}
+
 int update_cylinder_len(int index)
 {
 	char cmd[16];
@@ -251,16 +258,10 @@ int update_cylinder_len(int index)
 	return 0;
 }
 
-int update_motion_state(void) 
+void update_motion_state(void) 
 {
 	int i;
-	int ret;
 	
-	for (i = 0; i < NCYLINDER; i++) {
-                ret = update_cylinder_len(i);	
-		if (ret)
-			return ret;
-	}
-	
-	return 0;
+	for (i = 0; i < NCYLINDER; i++) 
+                 update_cylinder_len(i);	
 }

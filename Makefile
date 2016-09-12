@@ -2,7 +2,7 @@ src := $(wildcard *.c)
 objs := $(patsubst %.c,%.o,$(src))
 code := $(shell find -name "*.h") $(src)
 CC := gcc
-LDFLAGS := -lpthread
+LDFLAGS := -lpthread -lncurses
 CFLAGS := -Iinclude -Wall
 
 project3.elf: $(objs) 
