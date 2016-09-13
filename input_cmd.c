@@ -24,8 +24,16 @@ static int do_quit(int argc, char *argv[])
 }
 
 static int do_list(int argc, char *argv[]);
+static int switch_to_raw(int argc, char *argv[]);
+static int do_help(int argc, char *argv[]);
 
 static struct input_cmd cmds[] = {
+	{
+	 .str = "help",
+	 .func = do_help,
+	 .info = "'help COMMAND' display some informations, "
+		" COMMAND should be from 'list'", 
+	 },
 	{
 	 .str = "quit",
 	 .func = do_quit,
@@ -37,6 +45,13 @@ static struct input_cmd cmds[] = {
 	{
 	 .str = "list",
 	 .func = do_list,
+	 .info = "list out all of the supported command",
+	 },
+	{
+	 .str = "raw",
+	 .func = switch_to_raw,
+	 .info = "Use 'raw' switch to raw mode, and"
+		"directly send charactors to serial port", 
 	 },
 };
 
@@ -63,6 +78,27 @@ static int do_list(int argc, char *argv[])
 		"support:%s", buf);
 	free(buf);
 	return 0;
+}
+
+static int do_help(int argc, char *argv[])
+{
+	int i;
+	int j;
+	int err;
+
+	for (i = 1; i < argc; i++) {
+		err = -1;
+		for (j = 0; j < NCMDS; j++) {
+			if (strcmp(argv[i], cmds[j].str))
+                        	continue;
+			mvwprintw(input_win, LINES_INPUT -1, 0,
+                		"%s:\n\t%s\n", 
+				argv[i], cmds[j].info);
+			err = 0;
+			break;
+		}
+	}
+	return err;
 }
 
 #define MAX_ARGS	16
@@ -95,12 +131,15 @@ static int parse_cmd(char *cmd, char *args[])
 	return argc;
 }
 
-static int do_cmds(char *cmd)
+static int input_run_cmd(char *cmd_in)
 {
 	int i;
 	int err;
 	int argc;
 	char *args[MAX_ARGS];
+	char cmd[256];
+
+	memcpy(cmd, cmd_in, 256);
 
 	argc = parse_cmd(cmd, args); 
 
@@ -108,36 +147,83 @@ static int do_cmds(char *cmd)
 		if (strcmp(cmd, cmds[i].str))
 			continue;
 		err = cmds[i].func(argc, args);
+		if (err)
+			mvwprintw(input_win, LINES_INPUT -1, 0,
+                        "err: '%s', try 'help %s'", cmd, cmd);
 		return err;
 	}
-	mvwprintw(input_win, LINES_INPUT -1, 0, "unknow: '%s', try 'list'", cmd);
+	mvwprintw(input_win, LINES_INPUT -1, 0, 
+			"unknow: '%s', try 'list'", cmd);
 	return -1;
 }
 
+static int raw_run_cmd(char *cmd)
+{
+	return 0;
+}
+
+#define INPUT_MODE	0
+#define RAW_MODE	1	
+
+static int cmd_mod = INPUT_MODE;
+
+static int switch_to_raw(int argc, char *argv[])
+{
+	cmd_mod = RAW_MODE;
+	return 0;
+}
+
+static struct mod_info {
+	const char *name;
+	int (*func)(char *cmd);
+} modes[] = {
+	[INPUT_MODE] {.name = "input:", .func = input_run_cmd,}, 
+	[RAW_MODE] {.name = "('Esc' to exit) raw:", .func = raw_run_cmd,},
+};
+
 static char cmd_buf[256];
 
-#define ENTER	0xd
+#define ENTER	0x0d
+#define ESCAP	0x1b
+
+static char *scan_cmd_buf(void)
+{
+	chtype ch;
+        int i;
+
+	i = 0;
+	do {
+		ch = getchar();
+		if (ch == ESCAP && cmd_mod == RAW_MODE) {
+			cmd_mod = INPUT_MODE;	
+			return 0;
+		}
+		cmd_buf[i] = ch;
+		i++;
+		waddch(input_win, ch);
+		wrefresh(input_win);
+	} while (ch != ENTER);
+
+	if (i < 2)
+		return 0;
+
+	cmd_buf[i - 1] = 0;
+
+	return cmd_buf;
+}
 
 void cmd_loop(void)
 {
-	chtype ch;
-	int i;
+	char *cmd;
 
 	while (!game_over) {
-		i = 0;
 		scroll(input_win);
-		mvwprintw(input_win, LINES_INPUT - 1, 0, "input:");
+		mvwprintw(input_win, LINES_INPUT - 1, 0, modes[cmd_mod].name);
 		wrefresh(input_win);
-
-		do {
-			ch = getchar();
-			cmd_buf[i] = ch;
-			i++;
-			waddch(input_win, ch);
-			wrefresh(input_win);
-		} while (ch != ENTER);
-		cmd_buf[i - 1] = 0;
-		do_cmds(cmd_buf);
+		cmd = scan_cmd_buf();
+		if (!cmd)
+			continue;
+		modes[cmd_mod].func(cmd);
 	}
 }
 
