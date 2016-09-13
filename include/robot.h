@@ -44,6 +44,6 @@ int update_cylinder_len(int index);
 void update_motion_state(void);
 
 const struct cylinder_info *get_cylinder_info(int index);
-const struct interface_info *get_interface_info(void); 
+inline const struct interface_info *get_interface_info(void); 
 
 #endif

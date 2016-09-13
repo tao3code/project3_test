@@ -185,8 +185,6 @@ int update_presure(void)
                 return -1;
         }
 	
-	printf("presure:%x\n", control_state.air);
-
         return 0;
 }
 
@@ -264,4 +262,9 @@ void update_motion_state(void)
 	
 	for (i = 0; i < NCYLINDER; i++) 
                  update_cylinder_len(i);	
+}
+
+inline const struct interface_info *get_interface_info(void)
+{
+	return &control_state;
 }
