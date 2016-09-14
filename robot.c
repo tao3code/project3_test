@@ -11,61 +11,119 @@
 #define TYPE_N	1
 
 static struct cylinder_info motion_state[] = {
-	[0] {.id = ID_R_WAIST_A, .type = TYPE_N},
-	[1] {.id = ID_L_WAIST_A, .type = TYPE_P},
-	[2] {.id = ID_R_WAIST_B, .type = TYPE_P},
-	[3] {.id = ID_L_WAIST_B, .type = TYPE_N},
-	[4] {.id = ID_R_TIGHT, .type = TYPE_N},
-	[5] {.id = ID_L_TIGHT, .type = TYPE_P},
-	[6] {.id = ID_R_CALF, .type = TYPE_N},
-	[7] {.id = ID_L_CALF, .type = TYPE_P},
-	[8] {.id = ID_R_FOOT_A, .type = TYPE_P},
-	[9] {.id = ID_L_FOOT_A, .type = TYPE_N},
-	[10] {.id = ID_R_FOOT_B, .type = TYPE_N},
-	[11] {.id = ID_L_FOOT_B, .type = TYPE_P},
+	[0] {.msg = MESSAGE_1, .type = TYPE_N},
+	[1] {.msg = MESSAGE_7, .type = TYPE_P},
+	[2] {.msg = MESSAGE_2, .type = TYPE_P},
+	[3] {.msg = MESSAGE_8, .type = TYPE_N},
+	[4] {.msg = MESSAGE_3, .type = TYPE_N},
+	[5] {.msg = MESSAGE_9, .type = TYPE_P},
+	[6] {.msg = MESSAGE_4, .type = TYPE_N},
+	[7] {.msg = MESSAGE_A, .type = TYPE_P},
+	[8] {.msg = MESSAGE_5, .type = TYPE_P},
+	[9] {.msg = MESSAGE_B, .type = TYPE_N},
+	[10] {.msg = MESSAGE_6, .type = TYPE_N},
+	[11] {.msg = MESSAGE_C, .type = TYPE_P},
 };
 
-static struct interface_info control_state = {.id = ID_IF_BOARD };
-
+static struct interface_info control_state = {.msg = MESSAGE_0};
 #define NCYLINDER	(sizeof(motion_state)/sizeof(struct cylinder_info))
 
-static void trunc_name(char *msg)
+static int trunc_name_get_id(char *msg, const char *fmt, 
+				char *idout, char **nameout)
 {
-	while(*msg != ',')
+	*idout = 0;
+	*nameout = 0;
+
+	while (*fmt && *msg) {
+		if (*fmt != *msg)
+			return -1;
+
+		if (*fmt == ',') {
+			*msg = 0;
+			*nameout = msg;
+		}
+
+		if (*fmt ==':') {
+			if (!*nameout)
+				return -1;
+			*idout = *(fmt + 1);
+			return 0;
+		}
+
+		fmt++;
 		msg++;
-	*msg = 0;
+	}
+	
+	return -1;
 }
 
-void test_robot(void)
+static char get_assigned_id(const char *fmt)
+{
+	while (*fmt) {
+		if (*fmt == ':')
+			return *(fmt + 1);
+		fmt++;
+	}
+	return 0;
+}
+
+int test_robot(void)
 {
 	int i;
+	int ret;
 	char cmd[16];
-	int len;
 	char *msg;
+	char *name;
+	char id;
+	int find;
 
+	find = 0;
 	for (i = 0; i < NCYLINDER; i++) {
 		memset(cmd, 0, sizeof(cmd));
-		sprintf(cmd, ">%c report;\n", motion_state[i].id);
-		msg = sent_cmd_alloc_response(cmd, &len);
+		id = get_assigned_id(motion_state[i].msg);
+		sprintf(cmd, ">%c report;\n", id);
+		ret = sent_cmd_alloc_response(cmd, &msg);
+		if (ret < 0) 
+			return ret;	
 		if (!msg) {
 			motion_state[i].id = 0;
 			continue;
 		}
-		trunc_name(msg);
-		log_info("detect: %s\n", msg);
+		ret = trunc_name_get_id(msg, motion_state[i].msg,
+			&motion_state[i].id, &name);
+		if (ret) {
+			log_err();
+			free(msg);
+			continue;
+		}
+		log_info("detect: %s, id: %c\n", name, motion_state[i].id);
 		free(msg);
+		find++;
 	}
 
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c report;", ID_IF_BOARD);
-	msg = sent_cmd_alloc_response(cmd, &len);
+	id = get_assigned_id(control_state.msg);
+	sprintf(cmd, ">%c report;", id);
+	ret = sent_cmd_alloc_response(cmd, &msg);
+	if (ret < 0)
+		return ret;
+
 	if (!msg) {
 		control_state.id = 0;
-		return;
+		return find;
 	}
-	trunc_name(msg);
-	log_info("detect: %s\n", msg);
+	ret = trunc_name_get_id(msg, control_state.msg,
+		&control_state.id, &name);
+	if (ret) {
+		log_err();
+		free(msg);
+		return find;
+	}
+	log_info("detect: %s, id: %c\n", name, control_state.id);
 	free(msg);
+	find++;
+
+	return find;
 }
 
 static unsigned char c2x(char ch)
@@ -124,7 +182,7 @@ static int get_byte(char *cmd, char *fmt, unsigned char *byte, int n)
 		return -1;
 	}
 
-	msg = sent_cmd_alloc_response(cmd, &ret);
+	ret = sent_cmd_alloc_response(cmd, &msg);
 
 	if (!msg) {
 		log_info("%s read nothing\n", __FUNCTION__);
@@ -267,4 +325,10 @@ void update_motion_state(void)
 inline const struct interface_info *get_interface_info(void)
 {
 	return &control_state;
+}
+
+inline const struct cylinder_info *get_motion_info(int *count)
+{
+	*count = NCYLINDER;
+	return	motion_state; 
 }

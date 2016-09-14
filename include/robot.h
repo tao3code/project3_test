@@ -3,6 +3,7 @@
 
 struct cylinder_info {
 	char id;
+	const char *msg;
 	char force;
 	char type;
 	union {
@@ -15,6 +16,7 @@ struct cylinder_info {
 
 struct interface_info {
 	char id;
+	const char *msg;
 	unsigned char vol;
 	unsigned char air;
 	union {
@@ -33,7 +35,7 @@ struct interface_info {
 	};
 };
 
-void test_robot(void);
+int test_robot(void);
 
 int update_voltage(void);
 int update_presure(void);
@@ -45,5 +47,6 @@ void update_motion_state(void);
 
 const struct cylinder_info *get_cylinder_info(int index);
 inline const struct interface_info *get_interface_info(void); 
+inline const struct cylinder_info *get_motion_info(int *count); 
 
 #endif

@@ -7,8 +7,8 @@
 #define BUF_TIMEOUT_SEC 0
 #define BUF_TIMEOUT_MS  5000
 
-void send_cmd(const char *in);
-char *sent_cmd_alloc_response(const char *in, int *len);
+int send_cmd(const char *in);
+int sent_cmd_alloc_response(const char *in, char **out);
 int serial_init(void);
 void serial_close(void);
 

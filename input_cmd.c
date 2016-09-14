@@ -6,9 +6,55 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <robot.h>
+#include <serial.h>
+
+static int do_serial(int argc, char *argv[])
+{
+	if (argc != 2)
+		return -1;
+
+	if (!strcmp(argv[1], "open")) 
+		return serial_init();
+
+	if (!strcmp(argv[1], "close")) { 
+		serial_close();
+		return 0;
+	}
+
+	return -1;
+} 
 
 static WINDOW *input_win;
 static WINDOW *ctrl_win;
+static WINDOW *motion_win;
+
+#define LINES_INPUT	8	
+#define LINE_CTRL	9
+#define ROW_CTRL	16
+#define LINE_MOTION	6
+#define ROW_MOTION	48	
+
+static void show_motion(void)
+{
+	const struct cylinder_info *info;
+	int count;
+	int i;
+
+	info = get_motion_info(&count);
+	werase(motion_win);
+	for (i = 0; i < count; i++) {
+		if (!info[i].id) 
+			wprintw(motion_win, "len[%d]: NULL", i);
+		else 
+			wprintw(motion_win, "len[%d]: %hu", i, info[i].len);
+
+		if (i & 0x1)
+			waddch(motion_win, '\n');
+		else
+			waddch(motion_win, '\t');
+	}
+	wrefresh(motion_win);
+}	
 
 static void show_control(void)
 {
@@ -34,7 +80,7 @@ static void show_control(void)
 	wrefresh(ctrl_win);
 }
 
-static pthread_t ctrlshow_thread;
+static pthread_t ctrlshow_thread = 0;
 static int ctrlshow_on = 0;
 
 static void *ctrlshow_thread_func(void *arg)
@@ -62,15 +108,25 @@ static int do_ctrlshow(int argc, char *argv[])
 			ctrlshow_thread_func, &ctrlshow_on);
 	}
 
-	if(!strcmp(argv[1], "off"))
+	if(!strcmp(argv[1], "off")) {
+		if (!ctrlshow_on)
+			return 0;
 		ctrlshow_on = 0;
+		pthread_join(ctrlshow_thread, 0);
+	}
 
 	return 0;
 }
 
 static int do_detect(int argc, char *argv[])
 {
-	test_robot();
+	int ret;
+
+	ret = test_robot();
+	if (ret < 0)
+		return ret;
+
+	mvwprintw(input_win, LINES_INPUT - 1, 0, "find:%d devices", ret);
 	return 0;
 }
 
@@ -85,14 +141,12 @@ static unsigned char game_over = 0;
 static int do_quit(int argc, char *argv[])
 {
 	game_over = 1;
-	sleep(1);
 	return 0;
 }
 
 static int do_test(int argc, char *argv[])
 {
-	update_control_state();
-	show_control();
+	show_motion();
 	return 0;
 }
 
@@ -140,10 +194,14 @@ static struct input_cmd cmds[] = {
 	 .func = do_ctrlshow,
 	 .info = "Use 'ctrlshow on' or 'ctrlshow off'",
 	},
+	{
+	 .str = "serial",
+	 .func = do_serial,
+	 .info = "Use 'serial open' or 'serial close'",
+	},
 };
 
 #define NCMDS	(sizeof(cmds)/sizeof(struct input_cmd))
-#define LINES_INPUT	16	
 
 static int do_list(int argc, char *argv[])
 {
@@ -310,6 +368,12 @@ void cmd_loop(void)
 			continue;
 		modes[cmd_mod].func(cmd);
 	}
+
+
+	if (ctrlshow_on) {
+		ctrlshow_on = 0;
+		pthread_join(ctrlshow_thread, 0);
+	}
 }
 
 int open_scr(void)
@@ -318,7 +382,8 @@ int open_scr(void)
 	cbreak();
 	noecho();
 	input_win = newwin(LINES_INPUT, COLS, LINES - LINES_INPUT, 0);
-	ctrl_win = newwin(9, 32, 0, 0);
+	ctrl_win = newwin(LINE_CTRL, ROW_CTRL, 0, 0);
+	motion_win = newwin(LINE_MOTION, ROW_MOTION, 0, ROW_CTRL + 4);
 	scrollok(input_win, 1);
 
 	return 0;
@@ -328,5 +393,6 @@ void close_scr(void)
 {
 	delwin(input_win);
 	delwin(ctrl_win);
+	delwin(motion_win);
 	endwin();
 }

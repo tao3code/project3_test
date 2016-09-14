@@ -19,18 +19,12 @@ int main(int argc, const char *argv[])
 		return -1;	
 	log_info("Build virsion: %s,%s\n", __DATE__, __TIME__);
 
-	err = serial_init();
-	if (err) 
-		goto open_serial;
-	log_info("Open %s\n", TTYDEV);
-
 	open_scr();
 
 	cmd_loop();
 	
 	close_scr();
-	serial_close();
 	log_close();
- open_serial:
+
 	return 0;
 }

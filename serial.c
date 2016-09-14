@@ -13,28 +13,59 @@ static struct termios options;
 static pthread_mutex_t mtx_s;
 static pthread_mutexattr_t mat_s;
 
-void send_cmd(const char *cmd)
+int send_cmd(const char *cmd)
 {
+	int ret;
+	
+	if (serial_fd < 0) {
+		log_info("Serial port not open!\n");
+		return -1;
+	}
+
 	pthread_mutex_lock(&mtx_s);
-	write(serial_fd, cmd, strlen(cmd));
+	ret = tcflush(serial_fd, TCIOFLUSH);
+	if (ret < 0) {
+		log_err();
+		pthread_mutex_unlock(&mtx_s);
+		return -1;
+	}
+	ret = write(serial_fd, cmd, strlen(cmd));
 	pthread_mutex_unlock(&mtx_s);
+
+	return ret;
 }
 
 static char sbuf[256];
  
-char *sent_cmd_alloc_response(const char *in, int *len)
+int sent_cmd_alloc_response(const char *in, char **out)
 {
 	int ret;
 	int readed;
 	fd_set fs_read;
 	struct timeval timeout;
-	char *out;
 
-	*len = 0;
+	*out = 0;
+
+	if (serial_fd < 0) {
+		log_info("Serial port not open!\n");
+		return -1;
+	}
 
 	pthread_mutex_lock(&mtx_s);
-	tcflush(serial_fd, TCIOFLUSH);
-	write(serial_fd, in, strlen(in));
+	
+	ret = tcflush(serial_fd, TCIOFLUSH);
+	if (ret < 0) {
+		log_err();
+		pthread_mutex_unlock(&mtx_s);
+		return -1;
+	}
+
+	ret = write(serial_fd, in, strlen(in));
+	if (ret < 0) {
+		log_err();	
+		pthread_mutex_unlock(&mtx_s);
+		return ret;
+	}
 	tcdrain(serial_fd);
 
 	FD_ZERO(&fs_read);
@@ -44,16 +75,17 @@ char *sent_cmd_alloc_response(const char *in, int *len)
 	readed = 0;
 
 	ret = select(serial_fd + 1, &fs_read, NULL, NULL, &timeout);
+
 	if (ret < 0) {
-		log_err();	
+		log_err();
 		pthread_mutex_unlock(&mtx_s);
-		return 0;
+		return ret;
 	}
 
 	if (ret == 0) {
 		log_info("Time out:%s\n", in);
 		pthread_mutex_unlock(&mtx_s);
-		return 0;
+		return ret;
 	}
 
 	readed = 0;
@@ -66,6 +98,11 @@ char *sent_cmd_alloc_response(const char *in, int *len)
 		timeout.tv_sec = BUF_TIMEOUT_SEC;
 		timeout.tv_usec = BUF_TIMEOUT_MS;
 		ret = select(serial_fd + 1, &fs_read, NULL, NULL, &timeout);
+		if (ret < 0) {
+			log_err();	
+			pthread_mutex_unlock(&mtx_s);
+			return ret;
+		}
 	}
 	while (ret > 0);
 
@@ -74,22 +111,26 @@ char *sent_cmd_alloc_response(const char *in, int *len)
 		return 0;
 	}
 
-	out = malloc(readed);
-	if (!out) {
+	*out = malloc(readed);
+	if (!*out) {
 		log_err();
-		return 0;
+		return -1;
 	}
-	memset(out, 0, readed);
-	memcpy(out, sbuf, readed); 
+	memset(*out, 0, readed);
+	memcpy(*out, sbuf, readed); 
 	pthread_mutex_unlock(&mtx_s);
 
-	*len = readed;
-	return out;
+	return  readed;
 }
 
 int serial_init(void)
 {
 	int err;
+
+	if (serial_fd >= 0) {
+		log_info("Serial port already open, stop!\n");
+		return -1;
+	} 
 
 	serial_fd = open(TTYDEV, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (serial_fd < 0) {
@@ -97,19 +138,17 @@ int serial_init(void)
 		log_err();
 		goto open_serial;
 	}
-
+	log_info("%s is open\n", TTYDEV);	
 	tcgetattr(serial_fd, &options);
-	/*
+	
 	options.c_cflag |= (CLOCAL | CREAD);
 	options.c_cflag &= ~CSIZE;
 	options.c_cflag &= ~CRTSCTS;
 	options.c_cflag |= CS8;
 	options.c_cflag &= ~CSTOPB;
-	*/
-	options.c_cflag = 0;
-	//options.c_iflag |= IGNPAR;
-	//options.c_iflag &= ~IXOFF;
-	options.c_iflag = 0;
+	
+	options.c_iflag |= IGNPAR;
+	options.c_iflag &= ~IXOFF;
 	options.c_oflag = 0;
 	options.c_lflag = 0;
 	cfsetspeed(&options, B115200);
@@ -135,6 +174,8 @@ int serial_init(void)
 	pthread_mutexattr_destroy(&mat_s);
  init_mattr:
 	close(serial_fd);
+	serial_fd = -1;
+	log_info("%s closed\n", TTYDEV);	
  open_serial:
 	return err;
 }
@@ -144,4 +185,6 @@ void serial_close(void)
 	pthread_mutex_destroy(&mtx_s);
 	pthread_mutexattr_destroy(&mat_s);
 	close(serial_fd);
+	serial_fd = -1;
+	log_info("%s closed\n", TTYDEV);	
 }
