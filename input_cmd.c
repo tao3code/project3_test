@@ -13,10 +13,10 @@ static int do_serial(int argc, char *argv[])
 	if (argc != 2)
 		return -1;
 
-	if (!strcmp(argv[1], "open")) 
+	if (!strcmp(argv[1], "on")) 
 		return serial_init();
 
-	if (!strcmp(argv[1], "close")) { 
+	if (!strcmp(argv[1], "off")) { 
 		serial_close();
 		return 0;
 	}
@@ -30,7 +30,7 @@ static WINDOW *motion_win;
 
 #define LINES_INPUT	8	
 #define LINE_CTRL	9
-#define ROW_CTRL	16
+#define ROW_CTRL	24	
 #define LINE_MOTION	6
 #define ROW_MOTION	48	
 
@@ -53,8 +53,49 @@ static void show_motion(void)
 		else
 			waddch(motion_win, '\t');
 	}
+	lock_scr();
 	wrefresh(motion_win);
-}	
+	unlock_scr();
+}
+	
+static pthread_t motionshow_thread = 0;
+static int motionshow_on = 0;
+
+static void *motionshow_thread_func(void *arg)
+{
+	int *on = arg;
+
+	while (*on) {
+		usleep(100);
+		update_motion_state();
+		show_motion();
+	}
+	return 0;
+}
+
+static int do_motionshow(int argc, char *argv[])
+{
+	if (argc != 2)
+		return -1;
+
+	if (!strcmp(argv[1], "on")) {
+		if (motionshow_on)
+			return 0;
+		motionshow_on = 1;
+		return pthread_create(&motionshow_thread, 0,
+			motionshow_thread_func, &motionshow_on);
+	}
+
+	if(!strcmp(argv[1], "off")) {
+		if (!motionshow_on)
+			return 0;
+		motionshow_on = 0;
+		pthread_join(motionshow_thread, 0);
+	}
+
+	return 0;
+}
+
 
 static void show_control(void)
 {
@@ -65,7 +106,9 @@ static void show_control(void)
 	werase(ctrl_win);
 	if (!info->id) {
 		wprintw(ctrl_win, "Interface board does not exise!\n");
+		lock_scr();
 		wrefresh(ctrl_win);
+		unlock_scr();
 
 		return;
 	}
@@ -77,7 +120,9 @@ static void show_control(void)
 	wprintw(ctrl_win, "thm: %hd\n", info->thermal);	
 	wprintw(ctrl_win, "acc: %hd %hd %hd\n",
 		 info->ax, info->ay, info->az);
+	lock_scr();
 	wrefresh(ctrl_win);
+	unlock_scr();
 }
 
 static pthread_t ctrlshow_thread = 0;
@@ -181,8 +226,9 @@ static struct input_cmd cmds[] = {
 	{
 	 .str = "raw",
 	 .func = switch_to_raw,
-	 .info = "Use 'raw' switch to raw mode, and"
-	 "directly send charactors to serial port",
+	 .info = "Use 'raw' switch to raw mode, any input "
+		 "sring expect 'noraw', will be "
+	 	 "directly sent to serial port.",
 	 },
 	{
 	 .str = "detect",
@@ -195,9 +241,14 @@ static struct input_cmd cmds[] = {
 	 .info = "Use 'ctrlshow on' or 'ctrlshow off'",
 	},
 	{
+	 .str = "motionshow",
+	 .func = do_motionshow,
+	 .info = "Use 'motionshow on' or 'motionshow off'",
+	},
+	{
 	 .str = "serial",
 	 .func = do_serial,
-	 .info = "Use 'serial open' or 'serial close'",
+	 .info = "Use 'serial on' or 'serial off'",
 	},
 };
 
@@ -300,11 +351,6 @@ static int input_run_cmd(char *cmd_in)
 	return -1;
 }
 
-static int raw_run_cmd(char *cmd)
-{
-	return 0;
-}
-
 #define INPUT_MODE	0
 #define RAW_MODE	1
 
@@ -313,6 +359,32 @@ static int cmd_mod = INPUT_MODE;
 static int switch_to_raw(int argc, char *argv[])
 {
 	cmd_mod = RAW_MODE;
+	return 0;
+}
+
+static int raw_run_cmd(char *cmd)
+{
+	char *res;
+	int ret;
+
+	if (!strcmp(cmd, "noraw")) {
+		cmd_mod = INPUT_MODE;
+		return 0;
+	}
+
+	ret = sent_cmd_alloc_response(cmd, &res);
+	if (ret < 0) {
+		mvwprintw(input_win, LINES_INPUT - 1, 0,
+			 "operation fail: %s", cmd);
+		return 0;
+	}
+
+	if (ret == 0)
+		return 0;
+
+	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s", res);
+	free(res);
+	
 	return 0;
 }
 
@@ -344,7 +416,9 @@ static char *scan_cmd_buf(void)
 		cmd_buf[i] = ch;
 		i++;
 		waddch(input_win, ch);
+		lock_scr();
 		wrefresh(input_win);
+		unlock_scr();
 	} while (ch != ENTER);
 
 	if (i < 2)
@@ -362,7 +436,9 @@ void cmd_loop(void)
 	while (!game_over) {
 		scroll(input_win);
 		mvwprintw(input_win, LINES_INPUT - 1, 0, modes[cmd_mod].name);
+		lock_scr();
 		wrefresh(input_win);
+		unlock_scr();
 		cmd = scan_cmd_buf();
 		if (!cmd)
 			continue;
@@ -374,10 +450,41 @@ void cmd_loop(void)
 		ctrlshow_on = 0;
 		pthread_join(ctrlshow_thread, 0);
 	}
+
+	if (motionshow_on) {
+		motionshow_on = 0;
+		pthread_join(motionshow_thread, 0);
+	}
+
+}
+
+static pthread_mutex_t mtx_scr;
+static pthread_mutexattr_t mat_scr;
+
+inline void lock_scr(void) {
+	pthread_mutex_lock(&mtx_scr);
+}
+
+inline void unlock_scr(void) {
+	pthread_mutex_unlock(&mtx_scr);
 }
 
 int open_scr(void)
 {
+	int err;
+	err = pthread_mutexattr_init(&mat_scr);
+        if (err) {
+                log_err();
+                goto init_mattr;
+        }
+
+        err = pthread_mutex_init(&mtx_scr, &mat_scr);
+        if (err) {
+                log_err();
+                goto init_mutex;
+        }
+
+		
 	initscr();
 	cbreak();
 	noecho();
@@ -387,10 +494,19 @@ int open_scr(void)
 	scrollok(input_win, 1);
 
 	return 0;
+
+ 	pthread_mutex_destroy(&mtx_scr);
+ init_mutex:
+        pthread_mutexattr_destroy(&mat_scr);
+ init_mattr:
+	return err;
+
 }
 
 void close_scr(void)
 {
+	pthread_mutex_destroy(&mtx_scr);
+        pthread_mutexattr_destroy(&mat_scr);
 	delwin(input_win);
 	delwin(ctrl_win);
 	delwin(motion_win);

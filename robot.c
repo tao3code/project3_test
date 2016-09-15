@@ -31,6 +31,8 @@ static struct interface_info control_state = {.msg = MESSAGE_0};
 static int trunc_name_get_id(char *msg, const char *fmt, 
 				char *idout, char **nameout)
 {
+	char *p_name = msg;
+
 	*idout = 0;
 	*nameout = 0;
 
@@ -40,7 +42,7 @@ static int trunc_name_get_id(char *msg, const char *fmt,
 
 		if (*fmt == ',') {
 			*msg = 0;
-			*nameout = msg;
+			*nameout = p_name;
 		}
 
 		if (*fmt ==':') {
@@ -292,7 +294,6 @@ int update_cylinder_len(int index)
 	}
 
 	if (!motion_state[index].id) {
-		log_err();
 		return -1;
 	}
 

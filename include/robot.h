@@ -49,4 +49,7 @@ const struct cylinder_info *get_cylinder_info(int index);
 inline const struct interface_info *get_interface_info(void); 
 inline const struct cylinder_info *get_motion_info(int *count); 
 
+struct cylinder_info *alloc_cylinder_by_id(char id);
+struct interface_info *alloc_interface_board(void);
+
 #endif

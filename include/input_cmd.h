@@ -11,5 +11,7 @@ void cmd_loop(void);
 
 int open_scr(void);
 void close_scr(void);
+void lock_scr(void);
+void unlock_scr(void);
 
 #endif

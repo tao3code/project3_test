@@ -19,7 +19,12 @@ int main(int argc, const char *argv[])
 		return -1;	
 	log_info("Build virsion: %s,%s\n", __DATE__, __TIME__);
 
-	open_scr();
+	err = open_scr();
+	if (err) {
+		log_err();
+		log_close();
+		return -1;
+	}
 
 	cmd_loop();
 	

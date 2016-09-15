@@ -140,15 +140,9 @@ int serial_init(void)
 	}
 	log_info("%s is open\n", TTYDEV);	
 	tcgetattr(serial_fd, &options);
-	
-	options.c_cflag |= (CLOCAL | CREAD);
-	options.c_cflag &= ~CSIZE;
-	options.c_cflag &= ~CRTSCTS;
-	options.c_cflag |= CS8;
-	options.c_cflag &= ~CSTOPB;
-	
-	options.c_iflag |= IGNPAR;
-	options.c_iflag &= ~IXOFF;
+		
+	options.c_cflag = 0;
+	options.c_iflag = 0;
 	options.c_oflag = 0;
 	options.c_lflag = 0;
 	cfsetspeed(&options, B115200);
