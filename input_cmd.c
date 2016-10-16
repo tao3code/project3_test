@@ -22,19 +22,40 @@ static int do_meg(int argc, char *argv[])
 	return -1;
 }
 
-
 static pthread_t air_thread = 0;
 static int air_on = 0;
 
 static void *air_thread_func(void *arg)
 {
 	int *on = arg;
+	const struct interface_info *info;
+	char air;
+	int need_run;
+	int run_count;
+	int wait_count;
 
+        info = get_interface_info();
 	log_info("%s start\n", __FUNCTION__);
 
 	while (*on) {
-		log_info("%s %d\n", __FUNCTION__, __LINE__);
-		sleep(1);
+		air = info->air;
+		if (air < AIR_THRESHOLD_L)
+			need_run = 1;
+		if (air > AIR_THRESHOLD_H) 
+			need_run = 0;
+		if (!need_run) {
+			usleep(200);
+			continue;
+		}
+		
+		run_count = (AIR_THRESHOLD_H - air) * 255/AIR_THRESHOLD_H + 16;
+		engine_on(run_count);
+		log_info("engine_on(%d)\n", run_count);
+		wait_count = run_count * 4 /255;
+		if (wait_count < 1)
+			wait_count = 1;
+		sleep(wait_count);	
+		update_presure();
 	}
 
 	log_info("%s stop\n", __FUNCTION__);

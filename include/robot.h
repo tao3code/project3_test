@@ -7,9 +7,9 @@ struct cylinder_info {
 	char force;
 	char type;
 	union {
-		unsigned short len;
+		volatile unsigned short len;
 		struct {
-			unsigned char raw[3];
+			volatile unsigned char raw[3];
 		};
 	};
 };
@@ -17,20 +17,20 @@ struct cylinder_info {
 struct interface_info {
 	char id;
 	const char *msg;
-	unsigned char vol;
-	unsigned char air;
+	volatile unsigned char vol;
+	volatile unsigned char air;
 	union {
 		struct {
-			int short gz;
-			int short gy;
-			int short gx;
-			int short thermal;
-			int short az;
-			int short ay;
-			int short ax;
+			volatile int short gz;
+			volatile int short gy;
+			volatile int short gx;
+			volatile int short thermal;
+			volatile int short az;
+			volatile int short ay;
+			volatile int short ax;
 		};
 		struct {
-			unsigned char raw[14];
+			volatile unsigned char raw[14];
 		};
 	};
 };
@@ -53,5 +53,8 @@ inline const struct cylinder_info *get_motion_info(int *count);
 
 struct cylinder_info *alloc_cylinder_by_id(char id);
 struct interface_info *alloc_interface_board(void);
+
+#define AIR_THRESHOLD_H		80
+#define AIR_THRESHOLD_L		60
 
 #endif

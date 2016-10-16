@@ -172,7 +172,7 @@ static int msg_scan_data(char *msg, char *fmt, unsigned char *data, int n)
 	return find;
 }
 
-static int get_byte(char *cmd, char *fmt, unsigned char *byte, int n)
+static int get_byte(char *cmd, char *fmt, volatile unsigned char *byte, int n)
 {
 	int ret;
 	unsigned char b[32];
@@ -204,7 +204,7 @@ static int get_byte(char *cmd, char *fmt, unsigned char *byte, int n)
                 return -1;
         }
 
-	memcpy(byte, b, ret);	
+	memcpy((char *)byte, b, ret);	
 	free(msg);
 	return 0;	
 }
