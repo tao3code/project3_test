@@ -41,6 +41,8 @@ int update_voltage(void);
 int update_presure(void);
 int update_gyroscope(void);
 void update_control_state(void);
+int meg12v_on(char state);
+int engine_on(int count);
 
 int update_cylinder_len(int index);
 void update_motion_state(void);

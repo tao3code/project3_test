@@ -333,3 +333,47 @@ inline const struct cylinder_info *get_motion_info(int *count)
 	*count = NCYLINDER;
 	return	motion_state; 
 }
+
+int meg12v_on(char state)
+{
+	char str[16];
+
+	if (!control_state.id) {
+		log_info("No interface board!\n");
+		return -1;
+	}
+	
+	switch (state) {
+	case '0':
+	case '1':
+		sprintf(str, ">%c meg12v %c;",
+			control_state.id, state);
+		send_cmd(str);
+		break;
+	default:
+		log_err();
+		return -1;
+	}
+	
+	return 0;
+}
+
+int engine_on(int count)
+{
+	char str[16];
+
+        if (!control_state.id) {
+                log_info("No interface board!\n");
+                return -1;
+        }
+
+	if (count <= 0 || count > 255) {
+		log_err();
+		return -1;
+	}
+
+	sprintf(str, ">%c engine %x;", control_state.id, count);
+        send_cmd(str);
+
+	return 0;
+};

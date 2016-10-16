@@ -182,3 +182,8 @@ void serial_close(void)
 	serial_fd = -1;
 	log_info("%s closed\n", TTYDEV);	
 }
+
+int is_serial_on(void)
+{
+	return (serial_fd >= 0)? 1:0;
+}

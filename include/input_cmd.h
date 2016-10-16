@@ -14,4 +14,6 @@ void close_scr(void);
 void lock_scr(void);
 void unlock_scr(void);
 
+int run_cmd(char *cmd);
+
 #endif

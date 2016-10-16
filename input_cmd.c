@@ -8,31 +8,87 @@
 #include <robot.h>
 #include <serial.h>
 
-static int do_serial(int argc, char *argv[])
+static int do_meg(int argc, char *argv[])
 {
 	if (argc != 2)
 		return -1;
 
 	if (!strcmp(argv[1], "on")) 
+		return meg12v_on('1');
+
+	if (!strcmp(argv[1], "off")) 
+		return meg12v_on('0');
+
+	return -1;
+}
+
+
+static pthread_t air_thread = 0;
+static int air_on = 0;
+
+static void *air_thread_func(void *arg)
+{
+	int *on = arg;
+
+	log_info("%s start\n", __FUNCTION__);
+
+	while (*on) {
+		log_info("%s %d\n", __FUNCTION__, __LINE__);
+		sleep(1);
+	}
+
+	log_info("%s stop\n", __FUNCTION__);
+
+	return 0;
+}
+
+static int do_air(int argc, char *argv[])
+{
+	if (argc != 2)
+		return -1;
+	if (!strcmp(argv[1], "on")) {
+		if (air_on)
+			return 0;
+		air_on = 1;
+		return pthread_create(&air_thread, 0, air_thread_func, &air_on);
+	}
+
+	if (!strcmp(argv[1], "off")) {
+		if (!air_on)
+			return 0;
+		air_on = 0;
+		pthread_join(air_thread, 0);
+		return 0;
+	}
+
+	return engine_on(atoi(argv[1]));
+}
+
+static int do_serial(int argc, char *argv[])
+{
+	if (argc != 2)
+		return -1;
+
+	if (!strcmp(argv[1], "on"))
 		return serial_init();
 
-	if (!strcmp(argv[1], "off")) { 
+	if (!strcmp(argv[1], "off")) {
 		serial_close();
 		return 0;
 	}
 
 	return -1;
-} 
+}
 
 static WINDOW *input_win;
 static WINDOW *ctrl_win;
 static WINDOW *motion_win;
 
-#define LINES_INPUT	8	
+#define LINES_INPUT	8
 #define LINE_CTRL	9
-#define ROW_CTRL	24	
+#define ROW_CTRL	24
 #define LINE_MOTION	6
-#define ROW_MOTION	48	
+#define ROW_MOTION	48
 
 static void show_motion(void)
 {
@@ -43,9 +99,9 @@ static void show_motion(void)
 	info = get_motion_info(&count);
 	werase(motion_win);
 	for (i = 0; i < count; i++) {
-		if (!info[i].id) 
+		if (!info[i].id)
 			wprintw(motion_win, "len[%d]: NULL", i);
-		else 
+		else
 			wprintw(motion_win, "len[%d]: %hu", i, info[i].len);
 
 		if (i & 0x1)
@@ -57,19 +113,23 @@ static void show_motion(void)
 	wrefresh(motion_win);
 	unlock_scr();
 }
-	
+
 static pthread_t motionshow_thread = 0;
 static int motionshow_on = 0;
 
 static void *motionshow_thread_func(void *arg)
 {
 	int *on = arg;
+	
+	log_info("%s start\n", __FUNCTION__);
 
 	while (*on) {
 		usleep(100);
 		update_motion_state();
 		show_motion();
 	}
+
+	log_info("%s stop\n", __FUNCTION__);
 	return 0;
 }
 
@@ -83,19 +143,19 @@ static int do_motionshow(int argc, char *argv[])
 			return 0;
 		motionshow_on = 1;
 		return pthread_create(&motionshow_thread, 0,
-			motionshow_thread_func, &motionshow_on);
+				      motionshow_thread_func, &motionshow_on);
 	}
 
-	if(!strcmp(argv[1], "off")) {
+	if (!strcmp(argv[1], "off")) {
 		if (!motionshow_on)
 			return 0;
 		motionshow_on = 0;
 		pthread_join(motionshow_thread, 0);
+		return 0;
 	}
 
-	return 0;
+	return -1;
 }
-
 
 static void show_control(void)
 {
@@ -115,11 +175,9 @@ static void show_control(void)
 
 	wprintw(ctrl_win, "vol: %u\n", info->vol);
 	wprintw(ctrl_win, "air: %u\n", info->air);
-	wprintw(ctrl_win, "gyr: %hd %hd %hd\n",
-		 info->gx, info->gy, info->gz);
-	wprintw(ctrl_win, "thm: %hd\n", info->thermal);	
-	wprintw(ctrl_win, "acc: %hd %hd %hd\n",
-		 info->ax, info->ay, info->az);
+	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", info->gx, info->gy, info->gz);
+	wprintw(ctrl_win, "thm: %hd\n", info->thermal);
+	wprintw(ctrl_win, "acc: %hd %hd %hd\n", info->ax, info->ay, info->az);
 	lock_scr();
 	wrefresh(ctrl_win);
 	unlock_scr();
@@ -132,11 +190,16 @@ static void *ctrlshow_thread_func(void *arg)
 {
 	int *on = arg;
 
+	log_info("%s start\n", __FUNCTION__);
+
 	while (*on) {
 		usleep(100);
 		update_control_state();
 		show_control();
 	}
+
+	log_info("%s stop\n", __FUNCTION__);
+
 	return 0;
 }
 
@@ -150,17 +213,18 @@ static int do_ctrlshow(int argc, char *argv[])
 			return 0;
 		ctrlshow_on = 1;
 		return pthread_create(&ctrlshow_thread, 0,
-			ctrlshow_thread_func, &ctrlshow_on);
+				      ctrlshow_thread_func, &ctrlshow_on);
 	}
 
-	if(!strcmp(argv[1], "off")) {
+	if (!strcmp(argv[1], "off")) {
 		if (!ctrlshow_on)
 			return 0;
 		ctrlshow_on = 0;
 		pthread_join(ctrlshow_thread, 0);
+		return 0;
 	}
 
-	return 0;
+	return -1;
 }
 
 static int do_detect(int argc, char *argv[])
@@ -172,6 +236,13 @@ static int do_detect(int argc, char *argv[])
 		return ret;
 
 	mvwprintw(input_win, LINES_INPUT - 1, 0, "find:%d devices", ret);
+	
+	if (ret != 13) {
+		log_err();
+		scroll(input_win);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -227,29 +298,38 @@ static struct input_cmd cmds[] = {
 	 .str = "raw",
 	 .func = switch_to_raw,
 	 .info = "Use 'raw' switch to raw mode, any input "
-		 "sring expect 'noraw', will be "
-	 	 "directly sent to serial port.",
+	 "sring expect 'noraw', will be " "directly sent to serial port.",
 	 },
 	{
 	 .str = "detect",
 	 .func = do_detect,
 	 .info = "Query interface board and all cylinders",
-	},
+	 },
 	{
 	 .str = "ctrlshow",
 	 .func = do_ctrlshow,
 	 .info = "Use 'ctrlshow on' or 'ctrlshow off'",
-	},
+	 },
 	{
 	 .str = "motionshow",
 	 .func = do_motionshow,
 	 .info = "Use 'motionshow on' or 'motionshow off'",
-	},
+	 },
 	{
 	 .str = "serial",
 	 .func = do_serial,
 	 .info = "Use 'serial on' or 'serial off'",
-	},
+	 },
+	{
+	 .str = "air",
+	 .func = do_air,
+	 .info = "Use 'air on' or 'air off'",
+	 },
+	{
+	 .str = "meg",
+	 .func = do_meg,
+	 .info = "Use 'meg on' or 'meg off'",
+	 },
 };
 
 #define NCMDS	(sizeof(cmds)/sizeof(struct input_cmd))
@@ -341,7 +421,7 @@ static int input_run_cmd(char *cmd_in)
 		if (strcmp(cmd, cmds[i].str))
 			continue;
 		err = cmds[i].func(argc, args);
-		if (err)
+		if (err) 
 			mvwprintw(input_win, LINES_INPUT - 1, 0,
 				  "err: '%s', try 'help %s'", cmd, cmd);
 		return err;
@@ -375,7 +455,7 @@ static int raw_run_cmd(char *cmd)
 	ret = sent_cmd_alloc_response(cmd, &res);
 	if (ret < 0) {
 		mvwprintw(input_win, LINES_INPUT - 1, 0,
-			 "operation fail: %s", cmd);
+			  "operation fail: %s", cmd);
 		return 0;
 	}
 
@@ -384,7 +464,7 @@ static int raw_run_cmd(char *cmd)
 
 	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s", res);
 	free(res);
-	
+
 	return 0;
 }
 
@@ -394,25 +474,41 @@ static struct mod_info {
 } modes[] = {
 	[INPUT_MODE] {
 	.name = "input:",.func = input_run_cmd,},[RAW_MODE] {
-.name = "('Esc' to exit) raw:",.func = raw_run_cmd,},};
+.name = "('noraw' to exit) raw:",.func = raw_run_cmd,},};
 
 static char cmd_buf[256];
 
+int inline run_cmd(char *cmd)
+{
+	return modes[cmd_mod].func(cmd);
+}
+
 #define ENTER	0x0d
-#define ESCAP	0x1b
+#define BACKS	0x7f
 
 static char *scan_cmd_buf(void)
 {
 	chtype ch;
 	int i;
+	int x,y;
 
 	i = 0;
 	do {
 		ch = getchar();
-		if (ch == ESCAP && cmd_mod == RAW_MODE) {
-			cmd_mod = INPUT_MODE;
-			return 0;
+		if (ch == BACKS) {
+			if (i == 0)
+				continue;
+			i--;
+			cmd_buf[i] = 0;
+			getyx(input_win, y, x);
+			wmove(input_win, y, x-1);
+			wdelch(input_win);
+			lock_scr();
+			wrefresh(input_win);
+			unlock_scr();
+			continue;
 		}
+
 		cmd_buf[i] = ch;
 		i++;
 		waddch(input_win, ch);
@@ -442,9 +538,10 @@ void cmd_loop(void)
 		cmd = scan_cmd_buf();
 		if (!cmd)
 			continue;
-		modes[cmd_mod].func(cmd);
+		run_cmd(cmd);
 	}
 
+	/* command loop stop, do clean up work */
 
 	if (ctrlshow_on) {
 		ctrlshow_on = 0;
@@ -456,16 +553,28 @@ void cmd_loop(void)
 		pthread_join(motionshow_thread, 0);
 	}
 
+	if (air_on) {
+		air_on = 0;
+		pthread_join(air_thread, 0);
+	}
+
+	if (is_serial_on()) {
+		run_cmd("meg off");
+		run_cmd("serial off");
+	}
+
 }
 
 static pthread_mutex_t mtx_scr;
 static pthread_mutexattr_t mat_scr;
 
-inline void lock_scr(void) {
+inline void lock_scr(void)
+{
 	pthread_mutex_lock(&mtx_scr);
 }
 
-inline void unlock_scr(void) {
+inline void unlock_scr(void)
+{
 	pthread_mutex_unlock(&mtx_scr);
 }
 
@@ -473,18 +582,17 @@ int open_scr(void)
 {
 	int err;
 	err = pthread_mutexattr_init(&mat_scr);
-        if (err) {
-                log_err();
-                goto init_mattr;
-        }
+	if (err) {
+		log_err();
+		goto init_mattr;
+	}
 
-        err = pthread_mutex_init(&mtx_scr, &mat_scr);
-        if (err) {
-                log_err();
-                goto init_mutex;
-        }
+	err = pthread_mutex_init(&mtx_scr, &mat_scr);
+	if (err) {
+		log_err();
+		goto init_mutex;
+	}
 
-		
 	initscr();
 	cbreak();
 	noecho();
@@ -495,9 +603,9 @@ int open_scr(void)
 
 	return 0;
 
- 	pthread_mutex_destroy(&mtx_scr);
+	pthread_mutex_destroy(&mtx_scr);
  init_mutex:
-        pthread_mutexattr_destroy(&mat_scr);
+	pthread_mutexattr_destroy(&mat_scr);
  init_mattr:
 	return err;
 
@@ -506,7 +614,7 @@ int open_scr(void)
 void close_scr(void)
 {
 	pthread_mutex_destroy(&mtx_scr);
-        pthread_mutexattr_destroy(&mat_scr);
+	pthread_mutexattr_destroy(&mat_scr);
 	delwin(input_win);
 	delwin(ctrl_win);
 	delwin(motion_win);
