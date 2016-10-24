@@ -8,15 +8,104 @@
 #include <robot.h>
 #include <serial.h>
 
+int do_set(int argc, char *argv[])
+{
+	const struct cylinder_info *info;
+	int ncylinder;
+	int index;
+	int val;
+
+	if (argc != 3)
+		return -1;
+
+	info = get_motion_info(&ncylinder);
+	index = atoi(argv[1]);
+
+	if (index < 0 || index > ncylinder) {
+		log_err();
+		return -1;
+	}
+
+	if (!info[index].id) {
+		log_info("%s, no cylinder %d\n", __FUNCTION__, index);
+		return -1;
+	}
+
+	val = atoi(argv[2]);
+
+	return set_encoder(index, val);
+}
+
+static int wait_air_ready(void)
+{
+	volatile unsigned count = 0;
+	const struct interface_info *info = get_interface_info();
+
+	while(count < 20) {
+		if(info->air > AIR_THRESHOLD_L) {
+			return 0;
+		}
+		usleep(500);
+		count++;
+	}
+	return -1;
+}
+
+int do_len(int argc, char *argv[])
+{
+	const struct interface_info *ifo;
+	const struct cylinder_info *mfo;
+	int ncylinder;
+	int index;
+	int val;
+
+	if (argc != 3)
+		return -1;
+
+	ifo = get_interface_info();
+	mfo = get_motion_info(&ncylinder);
+
+	if (!ifo->id) {
+		log_info("%s, no interface board!\n", __FUNCTION__);
+		return -1;
+	}
+
+	index = atoi(argv[1]);
+
+	if (index < 0 || index > ncylinder) {
+		log_err();
+		return -1;
+	}
+
+	if (!mfo[index].id) {
+		log_info("%s, no cylinder %d\n", __FUNCTION__, index);
+		return -1;
+	}
+
+	if (ifo->vol < VOLTAGE_LOW) {
+		log_info("%s, voltage is low, stop!\n", __FUNCTION__);
+		return -1;
+	}
+
+	val = atoi(argv[2]);
+
+	if (wait_air_ready()) {
+		log_info("%s, pressure is low, stop!\n", __FUNCTION__);
+		return -1;
+	}
+
+	return megnet(index, val);
+}
+
 static int do_meg(int argc, char *argv[])
 {
 	if (argc != 2)
 		return -1;
 
-	if (!strcmp(argv[1], "on")) 
+	if (!strcmp(argv[1], "on"))
 		return meg12v_on('1');
 
-	if (!strcmp(argv[1], "off")) 
+	if (!strcmp(argv[1], "off"))
 		return meg12v_on('0');
 
 	return -1;
@@ -34,27 +123,28 @@ static void *air_thread_func(void *arg)
 	int run_count;
 	int wait_count;
 
-        info = get_interface_info();
+	info = get_interface_info();
 	log_info("%s start\n", __FUNCTION__);
 
 	while (*on) {
 		air = info->air;
 		if (air < AIR_THRESHOLD_L)
 			need_run = 1;
-		if (air > AIR_THRESHOLD_H) 
+		if (air > AIR_THRESHOLD_H)
 			need_run = 0;
 		if (!need_run) {
 			usleep(200);
 			continue;
 		}
-		
-		run_count = (AIR_THRESHOLD_H - air) * 255/AIR_THRESHOLD_H + 16;
+
+		run_count =
+		    (AIR_THRESHOLD_H - air) * 255 / AIR_THRESHOLD_H + 16;
 		engine_on(run_count);
 		log_info("engine_on(%d)\n", run_count);
-		wait_count = run_count * 4 /255;
+		wait_count = run_count * 4 / 255;
 		if (wait_count < 1)
 			wait_count = 1;
-		sleep(wait_count);	
+		sleep(wait_count);
 		update_presure();
 	}
 
@@ -141,7 +231,7 @@ static int motionshow_on = 0;
 static void *motionshow_thread_func(void *arg)
 {
 	int *on = arg;
-	
+
 	log_info("%s start\n", __FUNCTION__);
 
 	while (*on) {
@@ -199,6 +289,7 @@ static void show_control(void)
 	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", info->gx, info->gy, info->gz);
 	wprintw(ctrl_win, "thm: %hd\n", info->thermal);
 	wprintw(ctrl_win, "acc: %hd %hd %hd\n", info->ax, info->ay, info->az);
+	wprintw(ctrl_win, "m12: %c\n", info->m12v);
 	lock_scr();
 	wrefresh(ctrl_win);
 	unlock_scr();
@@ -257,7 +348,7 @@ static int do_detect(int argc, char *argv[])
 		return ret;
 
 	mvwprintw(input_win, LINES_INPUT - 1, 0, "find:%d devices", ret);
-	
+
 	if (ret != 13) {
 		log_err();
 		scroll(input_win);
@@ -351,6 +442,16 @@ static struct input_cmd cmds[] = {
 	 .func = do_meg,
 	 .info = "Use 'meg on' or 'meg off'",
 	 },
+	{
+	 .str = "len",
+	 .func = do_len,
+	 .info = "example 'len 1 -128'",
+	 },
+	{
+	 .str = "set",
+	 .func = do_set,
+	 .info = "example 'set 1 0'",
+	 },
 };
 
 #define NCMDS	(sizeof(cmds)/sizeof(struct input_cmd))
@@ -442,7 +543,7 @@ static int input_run_cmd(char *cmd_in)
 		if (strcmp(cmd, cmds[i].str))
 			continue;
 		err = cmds[i].func(argc, args);
-		if (err) 
+		if (err)
 			mvwprintw(input_win, LINES_INPUT - 1, 0,
 				  "err: '%s', try 'help %s'", cmd, cmd);
 		return err;
@@ -511,7 +612,7 @@ static char *scan_cmd_buf(void)
 {
 	chtype ch;
 	int i;
-	int x,y;
+	int x, y;
 
 	i = 0;
 	do {
@@ -522,7 +623,7 @@ static char *scan_cmd_buf(void)
 			i--;
 			cmd_buf[i] = 0;
 			getyx(input_win, y, x);
-			wmove(input_win, y, x-1);
+			wmove(input_win, y, x - 1);
 			wdelch(input_win);
 			lock_scr();
 			wrefresh(input_win);

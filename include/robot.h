@@ -17,6 +17,7 @@ struct cylinder_info {
 struct interface_info {
 	char id;
 	const char *msg;
+	char m12v;
 	volatile unsigned char vol;
 	volatile unsigned char air;
 	union {
@@ -43,6 +44,8 @@ int update_gyroscope(void);
 void update_control_state(void);
 int meg12v_on(char state);
 int engine_on(int count);
+int megnet(int index, int count);
+int set_encoder(int index, int val);
 
 int update_cylinder_len(int index);
 void update_motion_state(void);
@@ -56,5 +59,7 @@ struct interface_info *alloc_interface_board(void);
 
 #define AIR_THRESHOLD_H		80
 #define AIR_THRESHOLD_L		60
+
+#define VOLTAGE_LOW		170	
 
 #endif
