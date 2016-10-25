@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <robot.h>
 #include <serial.h>
+#include <sys/time.h>
 
 int do_set(int argc, char *argv[])
 {
@@ -38,15 +39,17 @@ int do_set(int argc, char *argv[])
 
 static int wait_air_ready(void)
 {
-	volatile unsigned count = 0;
+	time_t start, end;
 	const struct interface_info *info = get_interface_info();
 
-	while(count < 20) {
+	start = time(NULL);
+	end = time(NULL);
+	while((end -start) > 2) {
 		if(info->air > AIR_THRESHOLD_L) {
 			return 0;
 		}
 		usleep(500);
-		count++;
+		end = time(NULL);
 	}
 	return -1;
 }
@@ -273,8 +276,10 @@ static void show_control(void)
 	const struct interface_info *info;
 
 	info = get_interface_info();
-
+	
 	werase(ctrl_win);
+	wprintw(ctrl_win, "utc: %lu\n", time(NULL));
+
 	if (!info->id) {
 		wprintw(ctrl_win, "Interface board does not exise!\n");
 		lock_scr();
