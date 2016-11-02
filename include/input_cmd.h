@@ -17,8 +17,6 @@ int run_cmd(char *cmd);
 
 int open_scr(void);
 void close_scr(void);
-void lock_scr(void);
-void unlock_scr(void);
 
 void update_control_window(void);
 void update_motion_window(void);
