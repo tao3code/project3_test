@@ -9,34 +9,6 @@
 #include <serial.h>
 #include <sys/time.h>
 
-int do_set(int argc, char *argv[])
-{
-	const struct cylinder_info *info;
-	int ncylinder;
-	int index;
-	int val;
-
-	if (argc != 3)
-		return -1;
-
-	info = get_motion_info(&ncylinder);
-	index = atoi(argv[1]);
-
-	if (index < 0 || index > ncylinder) {
-		log_err();
-		return -1;
-	}
-
-	if (!info[index].id) {
-		log_info("%s, no cylinder %d\n", __FUNCTION__, index);
-		return -1;
-	}
-
-	val = atoi(argv[2]);
-
-	return set_encoder(index, val);
-}
-
 static int wait_air_ready(void)
 {
 	time_t start, end;
@@ -204,7 +176,7 @@ static WINDOW *motion_win;
 #define LINE_MOTION	6
 #define ROW_MOTION	48
 
-static void show_motion(void)
+void update_motion_window(void)
 {
 	const struct cylinder_info *info;
 	int count;
@@ -228,50 +200,7 @@ static void show_motion(void)
 	unlock_scr();
 }
 
-static pthread_t motionshow_thread = 0;
-static int motionshow_on = 0;
-
-static void *motionshow_thread_func(void *arg)
-{
-	int *on = arg;
-
-	log_info("%s start\n", __FUNCTION__);
-
-	while (*on) {
-		usleep(100);
-		update_motion_state();
-		show_motion();
-	}
-
-	log_info("%s stop\n", __FUNCTION__);
-	return 0;
-}
-
-static int do_motionshow(int argc, char *argv[])
-{
-	if (argc != 2)
-		return -1;
-
-	if (!strcmp(argv[1], "on")) {
-		if (motionshow_on)
-			return 0;
-		motionshow_on = 1;
-		return pthread_create(&motionshow_thread, 0,
-				      motionshow_thread_func, &motionshow_on);
-	}
-
-	if (!strcmp(argv[1], "off")) {
-		if (!motionshow_on)
-			return 0;
-		motionshow_on = 0;
-		pthread_join(motionshow_thread, 0);
-		return 0;
-	}
-
-	return -1;
-}
-
-static void show_control(void)
+void update_control_window(void)
 {
 	const struct interface_info *info;
 
@@ -298,50 +227,6 @@ static void show_control(void)
 	lock_scr();
 	wrefresh(ctrl_win);
 	unlock_scr();
-}
-
-static pthread_t ctrlshow_thread = 0;
-static int ctrlshow_on = 0;
-
-static void *ctrlshow_thread_func(void *arg)
-{
-	int *on = arg;
-
-	log_info("%s start\n", __FUNCTION__);
-
-	while (*on) {
-		usleep(100);
-		update_control_state();
-		show_control();
-	}
-
-	log_info("%s stop\n", __FUNCTION__);
-
-	return 0;
-}
-
-static int do_ctrlshow(int argc, char *argv[])
-{
-	if (argc != 2)
-		return -1;
-
-	if (!strcmp(argv[1], "on")) {
-		if (ctrlshow_on)
-			return 0;
-		ctrlshow_on = 1;
-		return pthread_create(&ctrlshow_thread, 0,
-				      ctrlshow_thread_func, &ctrlshow_on);
-	}
-
-	if (!strcmp(argv[1], "off")) {
-		if (!ctrlshow_on)
-			return 0;
-		ctrlshow_on = 0;
-		pthread_join(ctrlshow_thread, 0);
-		return 0;
-	}
-
-	return -1;
 }
 
 static int do_detect(int argc, char *argv[])
@@ -377,60 +262,15 @@ static int do_quit(int argc, char *argv[])
 	return 0;
 }
 
-static int do_test(int argc, char *argv[])
-{
-	show_motion();
-	return 0;
-}
-
 static int do_list(int argc, char *argv[]);
 static int switch_to_raw(int argc, char *argv[]);
 static int do_help(int argc, char *argv[]);
 
 static struct input_cmd cmds[] = {
 	{
-	 .str = "test",
-	 .func = do_test,
-	 },
-	{
-	 .str = "help",
-	 .func = do_help,
-	 .info = "'help COMMAND' display some informations, "
-	 " COMMAND should be from 'list'",
-	 },
-	{
-	 .str = "quit",
-	 .func = do_quit,
-	 },
-	{
-	 .str = "erase",
-	 .func = do_erase,
-	 },
-	{
-	 .str = "list",
-	 .func = do_list,
-	 .info = "list out all of the supported command",
-	 },
-	{
-	 .str = "raw",
-	 .func = switch_to_raw,
-	 .info = "Use 'raw' switch to raw mode, any input "
-	 "sring expect 'noraw', will be " "directly sent to serial port.",
-	 },
-	{
 	 .str = "detect",
 	 .func = do_detect,
 	 .info = "Query interface board and all cylinders",
-	 },
-	{
-	 .str = "ctrlshow",
-	 .func = do_ctrlshow,
-	 .info = "Use 'ctrlshow on' or 'ctrlshow off'",
-	 },
-	{
-	 .str = "motionshow",
-	 .func = do_motionshow,
-	 .info = "Use 'motionshow on' or 'motionshow off'",
 	 },
 	{
 	 .str = "serial",
@@ -451,11 +291,6 @@ static struct input_cmd cmds[] = {
 	 .str = "len",
 	 .func = do_len,
 	 .info = "example 'len 1 -128'",
-	 },
-	{
-	 .str = "set",
-	 .func = do_set,
-	 .info = "example 'set 1 0'",
 	 },
 };
 
@@ -532,27 +367,66 @@ static int parse_cmd(char *cmd, char *args[])
 	return argc;
 }
 
+
+static struct input_cmd buildin_cmd[] =  {
+	{
+         .str = "help",
+         .func = do_help,
+	 .info = "'help COMMAND' display some informations, "
+         " COMMAND should be from 'list'",
+         .next = &buildin_cmd[1],
+	},
+	{
+         .str = "quit",
+         .func = do_quit,
+         .next = &buildin_cmd[2],
+	},
+	{
+         .str = "erase",
+         .func = do_erase,
+         .next = &buildin_cmd[3],
+         },
+        {
+         .str = "list",
+         .func = do_list,
+         .info = "list out all of the supported command",
+         .next = &buildin_cmd[4],
+         },
+        {
+         .str = "raw",
+         .func = switch_to_raw,
+         .info = "Use 'raw' switch to raw mode, any input "
+         "sring expect 'noraw', will be " "directly sent to serial port.",
+         .next = 0,
+         },
+        };
+
+static struct input_cmd *cmd_head = &buildin_cmd[0];
+
 static int input_run_cmd(char *cmd_in)
 {
-	int i;
 	int err;
 	int argc;
 	char *args[MAX_ARGS];
 	char cmd[256];
+	struct input_cmd *cmd_list = cmd_head;
 
 	memcpy(cmd, cmd_in, 256);
 
 	argc = parse_cmd(cmd, args);
 
-	for (i = 0; i < NCMDS; i++) {
-		if (strcmp(cmd, cmds[i].str))
-			continue;
-		err = cmds[i].func(argc, args);
+	while(cmd_list) {
+		if (strcmp(cmd, cmd_list->str)) {
+			cmd_list = cmd_list->next;
+                        continue;
+		}
+		err = cmd_list->func(argc, args);
 		if (err)
-			mvwprintw(input_win, LINES_INPUT - 1, 0,
-				  "err: '%s', try 'help %s'", cmd, cmd);
-		return err;
+                        mvwprintw(input_win, LINES_INPUT - 1, 0,
+                                  "err: '%s', try 'help %s'", cmd, cmd);
+                return err;
 	}
+		
 	mvwprintw(input_win, LINES_INPUT - 1, 0,
 		  "unknow: '%s', try 'list'", cmd);
 	return -1;
@@ -669,17 +543,6 @@ void cmd_loop(void)
 	}
 
 	/* command loop stop, do clean up work */
-
-	if (ctrlshow_on) {
-		ctrlshow_on = 0;
-		pthread_join(ctrlshow_thread, 0);
-	}
-
-	if (motionshow_on) {
-		motionshow_on = 0;
-		pthread_join(motionshow_thread, 0);
-	}
-
 	if (air_on) {
 		air_on = 0;
 		pthread_join(air_thread, 0);
@@ -690,6 +553,48 @@ void cmd_loop(void)
 		run_cmd("serial off");
 	}
 
+}
+
+static pthread_mutex_t mtx_cmd;
+static pthread_mutexattr_t mat_cmd;
+
+int input_cmd_init(void)
+{
+	int err;
+        err = pthread_mutexattr_init(&mat_cmd);
+        if (err) {
+                log_err();
+                goto init_mattr;
+        }
+
+	err = pthread_mutex_init(&mtx_cmd, &mat_cmd);
+        if (err) {
+                log_err();
+                goto init_mutex;
+        }
+
+        return 0;
+
+        pthread_mutex_destroy(&mtx_cmd);
+ init_mutex:
+        pthread_mutexattr_destroy(&mat_cmd);
+ init_mattr:
+        return err;
+
+}
+
+void input_cmd_exit(void) 
+{
+	pthread_mutex_destroy(&mtx_cmd);
+        pthread_mutexattr_destroy(&mat_cmd);	
+}
+
+void register_cmd(struct input_cmd *cmd)
+{
+	pthread_mutex_lock(&mtx_cmd);
+	cmd->next = cmd_head;
+	cmd_head = cmd;
+	pthread_mutex_unlock(&mtx_cmd);
 }
 
 static pthread_mutex_t mtx_scr;

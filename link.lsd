@@ -1,0 +1,15 @@
+SECTIONS
+{
+	.init_sec : {
+		init_func_start = .;
+	 	*(.init_sec);
+		. += 0x8;
+	} =  0x0000 
+
+	.exit_sec : {
+		exit_func_start = .;
+	 	*(.exit_sec);
+		. += 0x8;
+	} = 0x0000 
+}
+

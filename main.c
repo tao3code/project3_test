@@ -9,6 +9,7 @@
 #include <log_project3.h>
 #include <curses.h>
 #include <input_cmd.h>
+#include <init.h>
 
 int main(int argc, const char *argv[])
 {
@@ -26,8 +27,19 @@ int main(int argc, const char *argv[])
 		return -1;
 	}
 
+	err = input_cmd_init();
+	if (err) {
+		log_err();
+		close_scr();
+		log_close();
+		return -1;
+	}
+
+	do_init_funcs();
 	cmd_loop();
-	
+	do_exit_funcs();
+
+	input_cmd_exit();
 	close_scr();
 	log_close();
 
