@@ -82,4 +82,3 @@ static int reg_cmd(void)
 }
 
 init_func(reg_cmd);
-

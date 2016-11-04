@@ -1,9 +1,8 @@
-#src := $(wildcard *.c)
 src := $(shell find -name "*.c")
 objs := $(patsubst %.c,%.o,$(src))
-dps := $(patsubst %.c,%.d,$(src))
 code := $(shell find -name "*.h") $(src)
 CC := gcc
+LD := ld
 LDFLAGS := -lpthread -lncurses
 CFLAGS := -Iinclude -Wall -Werror -g
 
@@ -18,7 +17,8 @@ project3.elf: $(objs) link.lsd
 	@gcc $(CFLAGS) -c $< -o $@
 	@echo $@
 clean:
-	@rm -f *.elf $(objs) $(dps) build-all.o log_project3.txt
+	@rm -f *.elf $(objs) $(src:.c=.d) $(src:.c=.c~)
+	@rm -f build-all.o log_project3.txt
 	@wc -l  $(code)
 
 -include $(src:.c=.d)

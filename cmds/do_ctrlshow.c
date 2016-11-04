@@ -7,6 +7,35 @@
 #include <input_cmd.h>
 #include <robot.h>
 
+void update_control_window(void)
+{
+	const struct interface_info *info;
+
+	info = get_interface_info();
+
+	werase(ctrl_win);
+	wprintw(ctrl_win, "utc: %lu\n", time(NULL));
+
+	if (!info->id) {
+		wprintw(ctrl_win, "Interface board does not exise!\n");
+		lock_scr();
+		wrefresh(ctrl_win);
+		unlock_scr();
+
+		return;
+	}
+
+	wprintw(ctrl_win, "vol: %u\n", info->vol);
+	wprintw(ctrl_win, "air: %u\n", info->air);
+	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", info->gx, info->gy, info->gz);
+	wprintw(ctrl_win, "thm: %hd\n", info->thermal);
+	wprintw(ctrl_win, "acc: %hd %hd %hd\n", info->ax, info->ay, info->az);
+	wprintw(ctrl_win, "m12: %c\n", info->m12v);
+	lock_scr();
+	wrefresh(ctrl_win);
+	unlock_scr();
+}
+
 static pthread_t ctrlshow_thread = 0;
 static int ctrlshow_on = 0;
 

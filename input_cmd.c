@@ -1,33 +1,24 @@
-#include <input_cmd.h>
-#include <curses.h>
 #include <pthread.h>
 #include <log_project3.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <input_cmd.h>
 #include <robot.h>
 #include <serial.h>
-#include <sys/time.h>
 
-static WINDOW *input_win;
-static WINDOW *ctrl_win;
-static WINDOW *motion_win;
-
-#define LINES_INPUT	8
-#define LINE_CTRL	9
-#define ROW_CTRL	24
-#define LINE_MOTION	6
-#define ROW_MOTION	48
+WINDOW *input_win;
+WINDOW *ctrl_win;
+WINDOW *motion_win;
 
 static pthread_mutex_t mtx_scr;
 static pthread_mutexattr_t mat_scr;
 
-static inline void lock_scr(void)
+inline void lock_scr(void)
 {
 	pthread_mutex_lock(&mtx_scr);
 }
 
-static inline void unlock_scr(void)
+inline void unlock_scr(void)
 {
 	pthread_mutex_unlock(&mtx_scr);
 }
@@ -75,59 +66,6 @@ void close_scr(void)
 	endwin();
 }
 
-void update_motion_window(void)
-{
-	const struct cylinder_info *info;
-	int count;
-	int i;
-
-	info = get_motion_info(&count);
-	werase(motion_win);
-	for (i = 0; i < count; i++) {
-		if (!info[i].id)
-			wprintw(motion_win, "len[%d]: NULL", i);
-		else
-			wprintw(motion_win, "len[%d]: %hu", i, info[i].len);
-
-		if (i & 0x1)
-			waddch(motion_win, '\n');
-		else
-			waddch(motion_win, '\t');
-	}
-	lock_scr();
-	wrefresh(motion_win);
-	unlock_scr();
-}
-
-void update_control_window(void)
-{
-	const struct interface_info *info;
-
-	info = get_interface_info();
-
-	werase(ctrl_win);
-	wprintw(ctrl_win, "utc: %lu\n", time(NULL));
-
-	if (!info->id) {
-		wprintw(ctrl_win, "Interface board does not exise!\n");
-		lock_scr();
-		wrefresh(ctrl_win);
-		unlock_scr();
-
-		return;
-	}
-
-	wprintw(ctrl_win, "vol: %u\n", info->vol);
-	wprintw(ctrl_win, "air: %u\n", info->air);
-	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", info->gx, info->gy, info->gz);
-	wprintw(ctrl_win, "thm: %hd\n", info->thermal);
-	wprintw(ctrl_win, "acc: %hd %hd %hd\n", info->ax, info->ay, info->az);
-	wprintw(ctrl_win, "m12: %c\n", info->m12v);
-	lock_scr();
-	wrefresh(ctrl_win);
-	unlock_scr();
-}
-
 #define INPUT_MODE	0
 #define RAW_MODE	1
 
@@ -136,12 +74,6 @@ static int cmd_mod = INPUT_MODE;
 static int switch_to_raw(int argc, char *argv[])
 {
 	cmd_mod = RAW_MODE;
-	return 0;
-}
-
-static int do_erase(int argc, char *argv[])
-{
-	werase(input_win);
 	return 0;
 }
 
@@ -159,19 +91,13 @@ static struct input_cmd buildin_cmd[] = {
 	{
 	 .str = "help",
 	 .func = do_help,
-	 .info = "'help COMMAND' display some informations, "
-	 " COMMAND should be from 'list'",
+	 .info = "'help COMMAND' display some informations",
 	 .next = &buildin_cmd[1],
 	 },
 	{
 	 .str = "quit",
 	 .func = do_quit,
 	 .next = &buildin_cmd[2],
-	 },
-	{
-	 .str = "erase",
-	 .func = do_erase,
-	 .next = &buildin_cmd[3],
 	 },
 	{
 	 .str = "raw",
@@ -288,7 +214,7 @@ static int input_run_cmd(char *cmd_in)
 	}
 
 	mvwprintw(input_win, LINES_INPUT - 1, 0,
-		  "unknow: '%s', try 'list'", cmd);
+		  "unknow: '%s', try 'help'", cmd);
 	return -1;
 }
 

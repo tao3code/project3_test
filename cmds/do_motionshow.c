@@ -7,6 +7,30 @@
 #include <input_cmd.h>
 #include <robot.h>
 
+static void update_motion_window(void)
+{
+	const struct cylinder_info *info;
+	int count;
+	int i;
+
+	info = get_motion_info(&count);
+	werase(motion_win);
+	for (i = 0; i < count; i++) {
+		if (!info[i].id)
+			wprintw(motion_win, "len[%d]: NULL", i);
+		else
+			wprintw(motion_win, "len[%d]: %hu", i, info[i].len);
+
+		if (i & 0x1)
+			waddch(motion_win, '\n');
+		else
+			waddch(motion_win, '\t');
+	}
+	lock_scr();
+	wrefresh(motion_win);
+	unlock_scr();
+}
+
 static pthread_t motionshow_thread = 0;
 static int motionshow_on = 0;
 
