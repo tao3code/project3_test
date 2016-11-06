@@ -11,21 +11,21 @@
 #define TYPE_N	1
 
 static struct cylinder_info motion_state[] = {
-	[0] {.msg = MESSAGE_1,.type = TYPE_N},
-	[1] {.msg = MESSAGE_7,.type = TYPE_P},
-	[2] {.msg = MESSAGE_2,.type = TYPE_P},
-	[3] {.msg = MESSAGE_8,.type = TYPE_N},
-	[4] {.msg = MESSAGE_3,.type = TYPE_N},
-	[5] {.msg = MESSAGE_9,.type = TYPE_P},
-	[6] {.msg = MESSAGE_4,.type = TYPE_N},
-	[7] {.msg = MESSAGE_A,.type = TYPE_P},
-	[8] {.msg = MESSAGE_5,.type = TYPE_P},
-	[9] {.msg = MESSAGE_B,.type = TYPE_N},
-	[10] {.msg = MESSAGE_6,.type = TYPE_N},
-	[11] {.msg = MESSAGE_C,.type = TYPE_P},
+	[0] {.dev = {.ack = MESSAGE_1},.type = TYPE_N,.fix = {0, 0,}},
+	[1] {.dev = {.ack = MESSAGE_7},.type = TYPE_P,.fix = {0, 0,}},
+	[2] {.dev = {.ack = MESSAGE_2},.type = TYPE_P,.fix = {0, 0,}},
+	[3] {.dev = {.ack = MESSAGE_8},.type = TYPE_N,.fix = {0, 0,}},
+	[4] {.dev = {.ack = MESSAGE_3},.type = TYPE_N,.fix = {0, 0,}},
+	[5] {.dev = {.ack = MESSAGE_9},.type = TYPE_P,.fix = {0, 0,}},
+	[6] {.dev = {.ack = MESSAGE_4},.type = TYPE_N,.fix = {0, 0,}},
+	[7] {.dev = {.ack = MESSAGE_A},.type = TYPE_P,.fix = {0, 0,}},
+	[8] {.dev = {.ack = MESSAGE_5},.type = TYPE_P,.fix = {0, 0,}},
+	[9] {.dev = {.ack = MESSAGE_B},.type = TYPE_N,.fix = {0, 0,}},
+	[10] {.dev = {.ack = MESSAGE_6},.type = TYPE_N,.fix = {0, 0,}},
+	[11] {.dev = {.ack = MESSAGE_C},.type = TYPE_P,.fix = {0, 0,}},
 };
 
-static struct interface_info control_state = {.msg = MESSAGE_0 };
+static struct interface_info control_state = {.dev = {.ack = MESSAGE_0} };
 
 #define NCYLINDER	(sizeof(motion_state)/sizeof(struct cylinder_info))
 
@@ -70,63 +70,38 @@ static char get_assigned_id(const char *fmt)
 	return 0;
 }
 
-int test_robot(void)
+int test_device(struct device *dev)
 {
-	int i;
-	int ret;
 	char cmd[16];
 	char *msg;
 	char *name;
 	char id;
-	int find;
+	int ret;
 
-	find = 0;
-	for (i = 0; i < NCYLINDER; i++) {
-		memset(cmd, 0, sizeof(cmd));
-		id = get_assigned_id(motion_state[i].msg);
-		sprintf(cmd, ">%c report;\n", id);
-		ret = sent_cmd_alloc_response(cmd, &msg);
-		if (ret < 0)
-			return ret;
-		if (!msg) {
-			motion_state[i].id = 0;
-			continue;
-		}
-		ret = trunc_name_get_id(msg, motion_state[i].msg,
-					&motion_state[i].id, &name);
-		if (ret) {
-			log_err();
-			free(msg);
-			continue;
-		}
-		log_info("detect: %s, id: %c\n", name, motion_state[i].id);
-		free(msg);
-		find++;
+	if (!dev->ack) {
+		log_err();
+		return -1;
 	}
 
+	dev->id = 0;
 	memset(cmd, 0, sizeof(cmd));
-	id = get_assigned_id(control_state.msg);
+	id = get_assigned_id(dev->ack);
 	sprintf(cmd, ">%c report;", id);
 	ret = sent_cmd_alloc_response(cmd, &msg);
 	if (ret < 0)
 		return ret;
-
-	if (!msg) {
-		control_state.id = 0;
-		return find;
-	}
-	ret = trunc_name_get_id(msg, control_state.msg,
-				&control_state.id, &name);
+	if (!msg)
+		return 0;
+	ret = trunc_name_get_id(msg, dev->ack, &dev->id, &name);
 	if (ret) {
 		log_err();
 		free(msg);
-		return find;
+		return ret;
 	}
-	log_info("detect: %s, id: %c\n", name, control_state.id);
-	free(msg);
-	find++;
 
-	return find;
+	log_info("detect: %s, id: %c\n", name, dev->id);
+
+	return 0;
 }
 
 static unsigned char c2x(char ch)
@@ -214,11 +189,11 @@ int update_voltage(void)
 	char cmd[16];
 	int ret;
 
-	if (!control_state.id)
+	if (!control_state.dev.id)
 		return -1;
 
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c voltage;", control_state.id);
+	sprintf(cmd, ">%c voltage;", control_state.dev.id);
 	ret = get_byte(cmd, MESSAGE_VOL, &control_state.vol, 1);
 
 	if (ret) {
@@ -233,11 +208,11 @@ int update_presure(void)
 	char cmd[16];
 	int ret;
 
-	if (!control_state.id)
+	if (!control_state.dev.id)
 		return -1;
 
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c presure;", control_state.id);
+	sprintf(cmd, ">%c presure;", control_state.dev.id);
 	ret = get_byte(cmd, MESSAGE_AIR, &control_state.air, 1);
 
 	if (ret) {
@@ -255,11 +230,11 @@ int update_gyroscope(void)
 	int i;
 	unsigned char res[sizeof(control_state.raw)];
 
-	if (!control_state.id)
+	if (!control_state.dev.id)
 		return -1;
 
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c gyroscope;", control_state.id);
+	sprintf(cmd, ">%c gyroscope;", control_state.dev.id);
 	ret = get_byte(cmd, MESSAGE_GYRO, res, sizeof(res));
 
 	if (ret) {
@@ -274,30 +249,47 @@ int update_gyroscope(void)
 
 }
 
+int update_meg12v(void)
+{
+	char cmd[16];
+	int ret;
+
+	if (!control_state.dev.id)
+		return -1;
+
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, ">%c meg12v 3;", control_state.dev.id);
+	ret = get_byte(cmd, MESSAGE_MEG, &control_state.m12v, 1);
+	control_state.m12v = !control_state.m12v;	
+
+	if (ret) {
+		log_err();
+		return -1;
+	}
+
+	return 0;
+}
+
 void update_control_state(void)
 {
 	update_voltage();
 	update_presure();
 	update_gyroscope();
+	update_meg12v();
 }
 
-int update_cylinder_len(int index)
+int update_cylinder_len(struct cylinder_info *cy)
 {
 	char cmd[16];
 	int ret;
-	unsigned char res[sizeof(motion_state[0].raw)];
+	unsigned char res[sizeof(cy->raw)];
 
-	if (index > NCYLINDER - 1) {
-		log_info("%s index %d > NCYLIDDER\n", __FUNCTION__, index);
-		return -1;
-	}
-
-	if (!motion_state[index].id) {
+	if (!cy->dev.id) {
 		return -1;
 	}
 
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c count;", motion_state[index].id);
+	sprintf(cmd, ">%c count;", cy->dev.id);
 	ret = get_byte(cmd, MESSAGE_ENC, res, sizeof(res));
 
 	if (ret) {
@@ -305,11 +297,11 @@ int update_cylinder_len(int index)
 		return -1;
 	}
 
-	motion_state[index].raw[0] = res[2];
-	motion_state[index].raw[1] = res[1];
+	cy->raw[0] = res[2];
+	cy->raw[1] = res[1];
 
-	if (motion_state[index].type == TYPE_N)
-		motion_state[index].len = 0xffff - motion_state[index].len;
+	if (cy->type == TYPE_N)
+		cy->len = 0xffff - cy->len;
 
 	return 0;
 }
@@ -319,17 +311,17 @@ void update_motion_state(void)
 	int i;
 
 	for (i = 0; i < NCYLINDER; i++)
-		update_cylinder_len(i);
+		update_cylinder_len(&motion_state[i]);
 }
 
-inline const struct interface_info *get_interface_info(void)
+inline struct interface_info *get_interface_info(void)
 {
 	return &control_state;
 }
 
-inline const struct cylinder_info *get_motion_info(int *count)
+inline struct cylinder_info *get_motion_info(int *arry_size)
 {
-	*count = NCYLINDER;
+	*arry_size = NCYLINDER;
 	return motion_state;
 }
 
@@ -337,7 +329,7 @@ int meg12v_on(char state)
 {
 	char str[16];
 
-	if (!control_state.id) {
+	if (!control_state.dev.id) {
 		log_info("No interface board!\n");
 		return -1;
 	}
@@ -345,9 +337,8 @@ int meg12v_on(char state)
 	switch (state) {
 	case '0':
 	case '1':
-		sprintf(str, ">%c meg12v %c;", control_state.id, state);
+		sprintf(str, ">%c meg12v %c;", control_state.dev.id, state);
 		send_cmd(str);
-		control_state.m12v = state;
 		break;
 	default:
 		log_err();
@@ -361,7 +352,7 @@ int engine_on(int count)
 {
 	char str[16];
 
-	if (!control_state.id) {
+	if (!control_state.dev.id) {
 		log_info("No interface board!\n");
 		return -1;
 	}
@@ -371,43 +362,38 @@ int engine_on(int count)
 		return -1;
 	}
 
-	sprintf(str, ">%c engine %x;", control_state.id, count);
+	sprintf(str, ">%c engine %x;", control_state.dev.id, count);
 	send_cmd(str);
 
 	return 0;
 };
 
-int megnet(int index, int count)
+int megnet(struct cylinder_info *cy, int count)
 {
 	char str[16];
 
-	if (!control_state.id) {
+	if (!control_state.dev.id) {
 		log_err();
 		return -1;
 	}
 
-	if (index <0 || index > NCYLINDER) {
-		log_err();
-		return -1;
-	}
-
-	if (!motion_state[index].id) {
+	if (!cy->dev.id) {
 		log_err();
 		return -1;
 	}
 
 	if (count > 0 && count < 255) {
-		sprintf(str, ">%c inc %2x;", motion_state[index].id, count);
+		sprintf(str, ">%c inc %2x;", cy->dev.id, count);
 		send_cmd(str);
-		motion_state[index].force = '+';
+		cy->force = '+';
 		return 0;
 	}
 
 	if (count < 0 && count > -255) {
-		sprintf(str, ">%c dec %2x;", motion_state[index].id,
+		sprintf(str, ">%c dec %2x;", cy->dev.id,
 			abs(count));
 		send_cmd(str);
-		motion_state[index].force = '-';
+		cy->force = '-';
 		return 0;
 	}
 
@@ -415,11 +401,11 @@ int megnet(int index, int count)
 	return -1;
 }
 
-int set_encoder(int index, int val)
+int set_encoder(struct cylinder_info *cy, int val)
 {
 	char str[16];
 
-	if (!control_state.id) {
+	if (!control_state.dev.id) {
 		log_err();
 		return -1;
 	}
@@ -429,20 +415,15 @@ int set_encoder(int index, int val)
 		return -1;
 	}
 
-	if (index <0 || index > NCYLINDER) {
+	if (!cy->dev.id) {
 		log_err();
 		return -1;
 	}
 
-	if (!motion_state[index].id) {
-		log_err();
-		return -1;
-	}
+	if (cy->type == TYPE_N)
+		val = 65535 - val;
 
-	if (motion_state[index].type == TYPE_N)
-		val = 65535 - val; 	
-
-	sprintf(str, ">%c set %4x;", motion_state[index].id, val);
+	sprintf(str, ">%c set %4x;", cy->dev.id, val);
 	send_cmd(str);
 	return 0;
 }

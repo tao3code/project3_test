@@ -1,11 +1,19 @@
 #ifndef ROBOT_H
 #define ROBOT_H
 
-struct cylinder_info {
+struct device {
 	char id;
-	const char *msg;
+	const char *ack;
+};
+
+struct cylinder_info {
+	struct device dev;
+	const struct fix_info {
+		unsigned short mm;
+		unsigned short count;
+	} fix;
 	char force;
-	char type;
+	const char type;
 	union {
 		volatile unsigned short len;
 		struct {
@@ -15,9 +23,8 @@ struct cylinder_info {
 };
 
 struct interface_info {
-	char id;
-	const char *msg;
-	char m12v;
+	struct device dev;
+	volatile unsigned char m12v;
 	volatile unsigned char vol;
 	volatile unsigned char air;
 	union {
@@ -36,30 +43,26 @@ struct interface_info {
 	};
 };
 
-int test_robot(void);
+inline struct interface_info *get_interface_info(void);
+inline struct cylinder_info *get_motion_info(int *arry_size);
+int test_device(struct device *dev);
 
 int update_voltage(void);
+int update_meg12v(void);
 int update_presure(void);
 int update_gyroscope(void);
 void update_control_state(void);
 int meg12v_on(char state);
 int engine_on(int count);
-int megnet(int index, int count);
-int set_encoder(int index, int val);
 
-int update_cylinder_len(int index);
+int update_cylinder_len(struct cylinder_info *cy);
 void update_motion_state(void);
-
-const struct cylinder_info *get_cylinder_info(int index);
-inline const struct interface_info *get_interface_info(void); 
-inline const struct cylinder_info *get_motion_info(int *count); 
-
-struct cylinder_info *alloc_cylinder_by_id(char id);
-struct interface_info *alloc_interface_board(void);
+int set_encoder(struct cylinder_info *cy, int val);
+int megnet(struct cylinder_info *cy, int count);
 
 #define AIR_THRESHOLD_H		80
 #define AIR_THRESHOLD_L		60
 
-#define VOLTAGE_LOW		170	
+#define VOLTAGE_LOW		170
 
 #endif

@@ -5,15 +5,26 @@
 
 static int do_detect(int argc, char *argv[])
 {
-	int ret;
+	int i, ncy;
+	int find = 0;
+	struct cylinder_info *cy_info;
+	struct interface_info *if_info;
 
-	ret = test_robot();
-	if (ret < 0)
-		return ret;
+	cy_info = get_motion_info(&ncy);
+	if_info = get_interface_info();
 
-	log_info("detect: find %d devices\n", ret);
+	for (i = 0; i < ncy; i++) {
+		test_device(&cy_info[i].dev);
+		if (cy_info[i].dev.id)
+			find++;
+	}
 
-	if (ret != 13) {
+	test_device(&if_info->dev);
+	if(if_info->dev.id)
+		find++;
+	log_info("detect: find %d devices\n", find);
+
+	if (find != 13) {
 		log_err();
 		return -1;
 	}

@@ -30,14 +30,4 @@ static int reg_cmd(void)
 	return 0;
 }
 
-static void clean_cmd(void)
-{
-	if (is_serial_on()) {
-		run_cmd("meg off");
-		run_cmd("serial off");
-	}
-
-}
-
 init_func(reg_cmd);
-exit_func(clean_cmd);

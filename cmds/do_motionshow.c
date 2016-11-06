@@ -16,7 +16,7 @@ static void update_motion_window(void)
 	info = get_motion_info(&count);
 	werase(motion_win);
 	for (i = 0; i < count; i++) {
-		if (!info[i].id)
+		if (!info[i].dev.id)
 			wprintw(motion_win, "len[%d]: NULL", i);
 		else
 			wprintw(motion_win, "len[%d]: %hu", i, info[i].len);

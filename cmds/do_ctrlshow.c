@@ -16,7 +16,7 @@ void update_control_window(void)
 	werase(ctrl_win);
 	wprintw(ctrl_win, "utc: %lu\n", time(NULL));
 
-	if (!info->id) {
+	if (!info->dev.id) {
 		wprintw(ctrl_win, "Interface board does not exise!\n");
 		lock_scr();
 		wrefresh(ctrl_win);
@@ -30,7 +30,7 @@ void update_control_window(void)
 	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", info->gx, info->gy, info->gz);
 	wprintw(ctrl_win, "thm: %hd\n", info->thermal);
 	wprintw(ctrl_win, "acc: %hd %hd %hd\n", info->ax, info->ay, info->az);
-	wprintw(ctrl_win, "m12: %c\n", info->m12v);
+	wprintw(ctrl_win, "m12: %d\n", info->m12v);
 	lock_scr();
 	wrefresh(ctrl_win);
 	unlock_scr();

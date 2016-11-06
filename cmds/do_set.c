@@ -6,7 +6,7 @@
 
 static int do_set(int argc, char *argv[])
 {
-	const struct cylinder_info *info;
+	struct cylinder_info *info;
 	int ncylinder;
 	int index;
 	int val;
@@ -22,14 +22,14 @@ static int do_set(int argc, char *argv[])
 		return -1;
 	}
 
-	if (!info[index].id) {
+	if (!info[index].dev.id) {
 		log_info("%s, no cylinder %d\n", __FUNCTION__, index);
 		return -1;
 	}
 
 	val = atoi(argv[2]);
 
-	return set_encoder(index, val);
+	return set_encoder(&info[index], val);
 }
 
 static struct input_cmd cmd = {

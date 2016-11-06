@@ -1,6 +1,6 @@
 src := $(shell find -name "*.c")
 objs := $(patsubst %.c,%.o,$(src))
-code := $(shell find -name "*.h") $(src)
+header := $(shell find -name "*.h")
 CC := gcc
 LD := ld
 LDFLAGS := -lpthread -lncurses
@@ -17,8 +17,10 @@ project3.elf: $(objs) link.lsd
 	@gcc $(CFLAGS) -c $< -o $@
 	@echo $@
 clean:
-	@rm -f *.elf $(objs) $(src:.c=.d) $(src:.c=.c~)
+	@rm -f *.elf $(objs) $(src:.c=.d)
+	@rm -f $(src:.c=.c~) $(header:.h=.h~)
 	@rm -f build-all.o log_project3.txt
-	@wc -l  $(code)
+report:
+	@wc -l $(src) $(header) Makefile
 
 -include $(src:.c=.d)
