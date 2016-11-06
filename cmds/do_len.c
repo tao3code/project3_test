@@ -14,7 +14,7 @@ static int wait_air_ready(void)
 	start = time(NULL);
 	end = time(NULL);
 	while ((end - start) < 2) {
-		if (info->air > AIR_THRESHOLD_L) {
+		if (info->air > AIR_THRESHOLD_OFF) {
 			return 0;
 		}
 		usleep(200);

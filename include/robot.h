@@ -61,7 +61,8 @@ int set_encoder(struct cylinder_info *cy, int val);
 int megnet(struct cylinder_info *cy, int count);
 
 #define AIR_THRESHOLD_H		80
-#define AIR_THRESHOLD_L		60
+#define AIR_THRESHOLD_L		70
+#define AIR_THRESHOLD_OFF	60
 
 #define VOLTAGE_LOW		170
 
