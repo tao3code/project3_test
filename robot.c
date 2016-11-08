@@ -130,12 +130,13 @@ static int msg_scan_data(char *msg, char *fmt, unsigned char *data, int n)
 			*data |= c2x(msg[pmsg]);
 			data++;
 			break;
+			
 		default:
 			if (fmt[pfmt] != msg[pmsg]) {
 				log_info("%s mismatch: "
-					 "msg[%d](%c) fmt[%d](%c)\n",
+					 "fmt[%d](%x) msg[%d](%s)\n",
 					 __FUNCTION__,
-					 pfmt, fmt[pfmt], pmsg, msg[pmsg]);
+					 pfmt, fmt[pfmt], pmsg, msg);
 				return -1;
 			}
 		}
@@ -172,7 +173,7 @@ static int get_byte(char *cmd, char *fmt, volatile unsigned char *byte, int n)
 		return -1;
 	}
 
-	ret = msg_scan_data(msg, fmt, b, sizeof(b));
+	ret = msg_scan_data(msg, fmt, b, n);
 
 	if (ret != n) {
 		log_info("%s request %d but get %d\n", __FUNCTION__, n, ret);

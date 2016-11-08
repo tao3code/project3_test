@@ -41,7 +41,7 @@ static void *motionshow_thread_func(void *arg)
 	log_info("%s start\n", __FUNCTION__);
 
 	while (*on) {
-		usleep(100);
+		sleep(1);
 		update_motion_state();
 		update_motion_window();
 	}

@@ -30,7 +30,7 @@ static void *air_thread_func(void *arg)
 		if (air > AIR_THRESHOLD_H)
 			need_run = 0;
 		if (!need_run) {
-			usleep(200);
+			usleep(500);
 			continue;
 		}
 

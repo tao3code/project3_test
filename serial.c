@@ -13,28 +13,6 @@ static struct termios options;
 static pthread_mutex_t mtx_s;
 static pthread_mutexattr_t mat_s;
 
-int send_cmd(const char *cmd)
-{
-	int ret;
-	
-	if (serial_fd < 0) {
-		log_info("Serial port not open!\n");
-		return -1;
-	}
-
-	pthread_mutex_lock(&mtx_s);
-	ret = tcflush(serial_fd, TCIOFLUSH);
-	if (ret < 0) {
-		log_err();
-		pthread_mutex_unlock(&mtx_s);
-		return -1;
-	}
-	ret = write(serial_fd, cmd, strlen(cmd));
-	pthread_mutex_unlock(&mtx_s);
-
-	return ret;
-}
-
 static char sbuf[256];
  
 int sent_cmd_alloc_response(const char *in, char **out)
@@ -123,6 +101,20 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	return  readed;
 }
 
+int send_cmd(const char *cmd)
+{
+	int ret;
+	char *msg_ingro;
+
+	ret = sent_cmd_alloc_response(cmd, &msg_ingro);	
+
+	if (ret < 0) 
+		return ret;
+
+	free(msg_ingro);
+	return 0;
+}
+
 int serial_init(void)
 {
 	int err;
@@ -144,7 +136,7 @@ int serial_init(void)
 	options.c_cflag = 0;
 	options.c_iflag = 0;
 	options.c_oflag = 0;
-	options.c_lflag = 0;
+	options.c_lflag = ICANON;
 	cfsetspeed(&options, B115200);
 	tcsetattr(serial_fd, TCSANOW, &options);
 	tcflush(serial_fd, TCIOFLUSH);
