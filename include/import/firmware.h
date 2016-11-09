@@ -46,8 +46,8 @@
 #define MESSAGE_ERR		"ERR:\x8\n\r"
 #define MESSAGE_VOL		"VOL:\x8\n\r"	
 #define MESSAGE_AIR		"AIR:\x8\n\r"
-#define MESSAGE_GYRO	"ACC_XYZ:\x8\x8 \x8\x8 \x8\x8\n\r" \
-					  	"THERMAL:\x8\x8\n\r"				\
+#define MESSAGE_GYRO	"ACC_XYZ:\x8\x8 \x8\x8 \x8\x8, " \
+					  	"THERMAL:\x8\x8, "				\
 					  	"GYR_XYZ:\x8\x8 \x8\x8 \x8\x8\n\r"
 #define MESSAGE_ENC		"ENC(\x8):\x8\x8\n\r"
 #define MESSAGE_OK		"DONE\n\r"

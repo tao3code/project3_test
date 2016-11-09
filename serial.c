@@ -18,7 +18,6 @@ static char sbuf[256];
 int sent_cmd_alloc_response(const char *in, char **out)
 {
 	int ret;
-	int readed;
 	fd_set fs_read;
 	struct timeval timeout;
 
@@ -34,15 +33,13 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	ret = tcflush(serial_fd, TCIOFLUSH);
 	if (ret < 0) {
 		log_err();
-		pthread_mutex_unlock(&mtx_s);
-		return -1;
+		goto flush_serial;
 	}
 
 	ret = write(serial_fd, in, strlen(in));
 	if (ret < 0) {
-		log_err();	
-		pthread_mutex_unlock(&mtx_s);
-		return ret;
+		log_err();
+		goto write_serial;	
 	}
 	tcdrain(serial_fd);
 
@@ -50,55 +47,44 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	FD_SET(serial_fd, &fs_read);
 	timeout.tv_sec = RES_TIMEOUT_SEC;
 	timeout.tv_usec = RES_TIMEOUT_MS;
-	readed = 0;
 
 	ret = select(serial_fd + 1, &fs_read, NULL, NULL, &timeout);
 
-	if (ret < 0) {
-		log_err();
-		pthread_mutex_unlock(&mtx_s);
-		return ret;
+	if (ret <= 0) {
+		log_info("Error response(%d):%s\n", ret, in);
+		goto wait_response;
 	}
 
-	if (ret == 0) {
-		log_info("Time out:%s\n", in);
-		pthread_mutex_unlock(&mtx_s);
-		return ret;
-	}
-
-	readed = 0;
 	memset(sbuf, 0, sizeof(sbuf));
 
-	do {
-		readed += read(serial_fd, &sbuf[readed], sizeof(sbuf));
-		FD_ZERO(&fs_read);
-		FD_SET(serial_fd, &fs_read);
-		timeout.tv_sec = BUF_TIMEOUT_SEC;
-		timeout.tv_usec = BUF_TIMEOUT_MS;
-		ret = select(serial_fd + 1, &fs_read, NULL, NULL, &timeout);
-		if (ret < 0) {
-			log_err();	
-			pthread_mutex_unlock(&mtx_s);
-			return ret;
-		}
-	}
-	while (ret > 0);
+	ret = read(serial_fd, sbuf, sizeof(sbuf));
 
-	if (readed == 0) {
-		pthread_mutex_unlock(&mtx_s);
-		return 0;
+	if (ret <= 0) {
+		log_err();
+		goto read_serial;
 	}
 
-	*out = malloc(readed);
+	*out = malloc(ret);
 	if (!*out) {
 		log_err();
-		return -1;
+		ret = -1;
+		goto alloc_buf;
 	}
-	memset(*out, 0, readed);
-	memcpy(*out, sbuf, readed); 
-	pthread_mutex_unlock(&mtx_s);
 
-	return  readed;
+	memset(*out, 0, ret);
+
+	if (sbuf[0] == '\r')
+		memcpy(*out, &sbuf[1], ret -1);
+	else
+		memcpy(*out, sbuf, ret);
+
+ alloc_buf:
+ read_serial:
+ wait_response:
+ write_serial:
+ flush_serial: 
+	pthread_mutex_unlock(&mtx_s);
+	return  ret;
 }
 
 int send_cmd(const char *cmd)
@@ -135,7 +121,7 @@ int serial_init(void)
 		
 	options.c_cflag = 0;
 	options.c_iflag = 0;
-	options.c_oflag = 0;
+	options.c_oflag = ONOCR | ONLRET;
 	options.c_lflag = ICANON;
 	cfsetspeed(&options, B115200);
 	tcsetattr(serial_fd, TCSANOW, &options);
