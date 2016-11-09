@@ -24,6 +24,12 @@ static void *air_thread_func(void *arg)
 	log_info("%s start\n", __FUNCTION__);
 
 	while (*on) {
+
+		if (info->vol < VOLTAGE_LOW) {
+			log_info("low voltage!\n");
+			break;
+		}
+
 		air = info->air;
 		if (air < AIR_THRESHOLD_L)
 			need_run = 1;
