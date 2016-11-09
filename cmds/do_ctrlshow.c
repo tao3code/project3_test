@@ -10,11 +10,16 @@
 void update_control_window(void)
 {
 	const struct interface_info *info;
+	time_t uts;
+	struct tm *t; 
 
 	info = get_interface_info();
 
+	uts = time(NULL);
+	t = localtime(&uts);
+
 	werase(ctrl_win);
-	wprintw(ctrl_win, "utc: %lu\n", time(NULL));
+	wprintw(ctrl_win, "%d:%d:%d\n", t->tm_hour, t->tm_min, t->tm_sec);
 
 	if (!info->dev.id) {
 		wprintw(ctrl_win, "Interface board does not exise!\n");
