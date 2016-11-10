@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
+#include <errno.h>
 #include <log_project3.h>
 
 static int log_fd;
@@ -25,6 +26,12 @@ void log_project3(const char *fmt, ...)
 	write(log_fd, logbuf, len);	
 	pthread_mutex_unlock(&mtx_log);	
 	va_end(args);
+}
+
+int log_system_err(const char *s)
+{
+	log_project3("%s, %s\n", s, strerror(errno));
+	return errno;
 }
 
 int log_open(void)

@@ -28,13 +28,13 @@ int open_scr(void)
 	int err;
 	err = pthread_mutexattr_init(&mat_scr);
 	if (err) {
-		log_err();
+		log_system_err(__FUNCTION__);
 		goto init_mattr;
 	}
 
 	err = pthread_mutex_init(&mtx_scr, &mat_scr);
 	if (err) {
-		log_err();
+		log_system_err(__FUNCTION__);
 		goto init_mutex;
 	}
 
@@ -296,9 +296,29 @@ static struct mod_info {
 
 static char cmd_buf[256];
 
-int inline run_cmd(char *cmd)
+int inline run_cmd(char *cmd_in)
 {
-	return modes[cmd_mod].func(cmd);
+	char *cmd = cmd_in;
+	char *cmd_out = 0;
+	
+	while(!cmd_out) {
+		switch(*cmd) {
+		case ' ':
+		case '\n':
+		case '\t':
+		case '\r':
+			break;
+		default:
+			if (!*cmd)
+				return 0;
+			cmd_out = cmd;
+		}
+		cmd++;
+	}
+
+	log_info("%s %s\n", modes[cmd_mod].name, cmd_out);	
+		
+	return modes[cmd_mod].func(cmd_out);
 }
 
 #define ENTER	0x0d

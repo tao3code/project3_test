@@ -32,13 +32,13 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	
 	ret = tcflush(serial_fd, TCIOFLUSH);
 	if (ret < 0) {
-		log_err();
+		log_system_err("flush serial");
 		goto flush_serial;
 	}
 
 	ret = write(serial_fd, in, strlen(in));
 	if (ret < 0) {
-		log_err();
+		log_system_err("write serial");
 		goto write_serial;	
 	}
 	tcdrain(serial_fd);
@@ -60,14 +60,13 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	ret = read(serial_fd, sbuf, sizeof(sbuf));
 
 	if (ret <= 0) {
-		log_err();
+		log_system_err("read serial");
 		goto read_serial;
 	}
 
 	*out = malloc(ret);
 	if (!*out) {
-		log_err();
-		ret = -1;
+		ret = log_system_err(__FUNCTION__);
 		goto alloc_buf;
 	}
 
@@ -112,8 +111,7 @@ int serial_init(void)
 
 	serial_fd = open(TTYDEV, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (serial_fd < 0) {
-		err = -1;
-		log_err();
+		err = log_system_err(TTYDEV);
 		goto open_serial;
 	}
 	log_info("%s is open\n", TTYDEV);	
@@ -129,13 +127,13 @@ int serial_init(void)
 
 	err = pthread_mutexattr_init(&mat_s);
 	if (err) {
-		log_err();
+		log_system_err(__FUNCTION__);
 		goto init_mattr;
 	}
 
 	err = pthread_mutex_init(&mtx_s, &mat_s);
 	if (err) {
-		log_err();
+		log_system_err(__FUNCTION__);
 		goto init_mutex;
 	}
 
