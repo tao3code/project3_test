@@ -68,12 +68,19 @@ void close_scr(void)
 
 #define INPUT_MODE	0
 #define RAW_MODE	1
+#define SILENT_MODE	2	
 
 static int cmd_mod = INPUT_MODE;
 
 static int switch_to_raw(int argc, char *argv[])
 {
 	cmd_mod = RAW_MODE;
+	return 0;
+}
+
+static int switch_to_silent(int argc, char *argv[])
+{
+	cmd_mod = SILENT_MODE;
 	return 0;
 }
 
@@ -104,6 +111,12 @@ static struct input_cmd buildin_cmd[] = {
 	 .func = switch_to_raw,
 	 .info = "Use 'raw' switch to raw mode, any input "
 	 "sring expect 'noraw', will be " "directly sent to serial port.",
+	 .next = &buildin_cmd[3],
+	 },
+	{
+	 .str = "silence",
+	 .func = switch_to_silent,
+	 .info = "Use 'silence' switch to silent mode, ingro error result.",
 	 .next = 0,
 	 },
 };
@@ -244,13 +257,42 @@ static int raw_run_cmd(char *cmd)
 	return 0;
 }
 
+static int silent_run_cmd(char *cmd_in)
+{
+	int argc;
+	char *args[MAX_ARGS];
+	char cmd[256];
+	struct input_cmd *cmd_list = cmd_head;
+
+	memcpy(cmd, cmd_in, 256);
+
+	argc = parse_cmd(cmd, args);
+
+	while (cmd_list) {
+		if (strcmp(cmd, cmd_list->str)) {
+			cmd_list = cmd_list->next;
+			continue;
+		}
+		cmd_list->func(argc, args);
+		break;
+	}
+	return 0;
+}
+
 static struct mod_info {
 	const char *name;
 	int (*func) (char *cmd);
 } modes[] = {
 	[INPUT_MODE] {
-	.name = "input:",.func = input_run_cmd,},[RAW_MODE] {
-.name = "('noraw' to exit) raw:",.func = raw_run_cmd,},};
+		.name = "input:",
+		.func = input_run_cmd,},
+	[RAW_MODE] {
+		.name = "('noraw' to exit) raw:",
+		.func = raw_run_cmd,},
+	[SILENT_MODE] {
+		.name = "('nosilence' to exit) silent:",
+		.func = silent_run_cmd,},
+};
 
 static char cmd_buf[256];
 
