@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <init.h>
 #include <log_project3.h>
 #include <input_cmd.h>
@@ -27,6 +28,16 @@ static int do_set(int argc, char *argv[])
 		return -1;
 	}
 
+	if (!strcmp(argv[2], "max")) {
+		val = info[index].fix.count + 128;
+		return set_encoder(&info[index], val);
+	}
+
+	if (!strcmp(argv[2], "min")) {
+		val = 128;
+		return set_encoder(&info[index], val);
+	}
+
 	val = atoi(argv[2]);
 
 	return set_encoder(&info[index], val);
@@ -35,7 +46,7 @@ static int do_set(int argc, char *argv[])
 static struct input_cmd cmd = {
 	.str = "set",
 	.func = do_set,
-	.info = "example 'set 1 0'",
+	.info = "example 'set 1 1024', 'set 1 max', 'set 1 min'",
 };
 
 static int reg_cmd(void)
