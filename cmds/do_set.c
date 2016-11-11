@@ -29,12 +29,12 @@ static int do_set(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[2], "max")) {
-		val = info[index].fix.count + 128;
+		val = info[index].fix.count + ENCODER_OFFSET;
 		return set_encoder(&info[index], val);
 	}
 
 	if (!strcmp(argv[2], "min")) {
-		val = 128;
+		val = ENCODER_OFFSET;
 		return set_encoder(&info[index], val);
 	}
 

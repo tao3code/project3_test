@@ -1,6 +1,8 @@
 #ifndef LOG_PROJECT3_H
 #define LOG_PROJECT3_H
 
+#include <errno.h>
+
 #define LOGFILE  "./log_project3.txt"
 
 void log_project3(const char *fmt, ...);

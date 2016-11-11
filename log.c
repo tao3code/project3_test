@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include <errno.h>
 #include <log_project3.h>
 
 static int log_fd;
