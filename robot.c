@@ -190,8 +190,10 @@ int update_voltage(void)
 	char cmd[16];
 	int ret;
 
-	if (!control_state.dev.id)
-		return -1;
+	if (!control_state.dev.id) {
+		log_info("%s, no interface board!\n", __FUNCTION__);
+                return -1;
+	}
 
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, ">%c voltage;", control_state.dev.id);
@@ -209,8 +211,10 @@ int update_presure(void)
 	char cmd[16];
 	int ret;
 
-	if (!control_state.dev.id)
-		return -1;
+	if (!control_state.dev.id) {
+		log_info("%s, no interface board!\n", __FUNCTION__);
+                return -1;
+	}
 
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, ">%c presure;", control_state.dev.id);
@@ -231,8 +235,10 @@ int update_gyroscope(void)
 	int i;
 	unsigned char res[sizeof(control_state.raw)];
 
-	if (!control_state.dev.id)
-		return -1;
+	if (!control_state.dev.id) {
+		log_info("%s, no interface board!\n", __FUNCTION__);
+                return -1;
+	}
 
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, ">%c gyroscope;", control_state.dev.id);
@@ -255,8 +261,10 @@ int update_meg12v(void)
 	char cmd[16];
 	int ret;
 
-	if (!control_state.dev.id)
-		return -1;
+	if (!control_state.dev.id) {
+		log_info("%s, no interface board!\n", __FUNCTION__);
+                return -1;
+	}
 
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, ">%c meg12v 3;", control_state.dev.id);
@@ -269,14 +277,6 @@ int update_meg12v(void)
 	}
 
 	return 0;
-}
-
-void update_control_state(void)
-{
-	update_voltage();
-	update_presure();
-	update_gyroscope();
-	update_meg12v();
 }
 
 int update_cylinder_len(struct cylinder_info *cy)
@@ -305,14 +305,6 @@ int update_cylinder_len(struct cylinder_info *cy)
 		cy->len = 0xffff - cy->len;
 
 	return 0;
-}
-
-void update_motion_state(void)
-{
-	int i;
-
-	for (i = 0; i < NCYLINDER; i++)
-		update_cylinder_len(&motion_state[i]);
 }
 
 inline struct interface_info *get_interface_info(void)
@@ -398,7 +390,7 @@ int megnet(struct cylinder_info *cy, int count)
 		return 0;
 	}
 
-	log_err();
+	log_info("%s, set %d error\n", __FUNCTION__, count);
 	return -1;
 }
 

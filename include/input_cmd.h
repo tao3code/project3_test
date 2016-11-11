@@ -25,6 +25,7 @@ void input_cmd_exit(void);
 void register_cmd(struct input_cmd *cmd);
 
 void cmd_loop(void);
+char *check_cmd(char *cmd_in);
 int run_cmd(char *cmd);
 
 int open_scr(void);

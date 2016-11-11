@@ -44,7 +44,7 @@ int do_len(int argc, char *argv[])
 
 	index = atoi(argv[1]);
 
-	if (index < 0 || index > ncylinder) {
+	if (index < 0 || index >= ncylinder) {
 		log_err();
 		return -1;
 	}

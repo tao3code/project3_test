@@ -37,8 +37,10 @@ static int target_set(int argc, char *argv[])
 
 	info->len = len;
 	
-	if (argc == 3) 
+	if (argc == 3) {
+		info->force = 0;
 		return 0;
+	}
 
 	if (!strcmp(argv[3], "push")) {
 		info->force = '+';

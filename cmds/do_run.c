@@ -12,6 +12,7 @@ static int do_run(int argc, char *argv[])
 	int fd;
 	char *buf;
 	char *cmd;
+	char *cmd_run;
 	int p = 0;
 	int ret = 0;
 	
@@ -49,7 +50,8 @@ static int do_run(int argc, char *argv[])
 		
 		buf[p] = 0;
 
-		if (cmd[0] != '#') {
+		cmd_run = check_cmd(cmd);
+		if (cmd_run) {
 			ret = run_cmd(cmd);
 			if (ret)
 				break;

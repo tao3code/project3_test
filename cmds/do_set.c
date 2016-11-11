@@ -18,7 +18,7 @@ static int do_set(int argc, char *argv[])
 	info = get_motion_info(&ncylinder);
 	index = atoi(argv[1]);
 
-	if (index < 0 || index > ncylinder) {
+	if (index < 0 || index >= ncylinder) {
 		log_err();
 		return -1;
 	}

@@ -52,12 +52,10 @@ int update_voltage(void);
 int update_meg12v(void);
 int update_presure(void);
 int update_gyroscope(void);
-void update_control_state(void);
 int meg12v_on(char state);
 int engine_on(int count);
 
 int update_cylinder_len(struct cylinder_info *cy);
-void update_motion_state(void);
 int set_encoder(struct cylinder_info *cy, int val);
 int megnet(struct cylinder_info *cy, int count);
 

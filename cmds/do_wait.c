@@ -4,6 +4,7 @@
 #include <init.h>
 #include <input_cmd.h>
 #include <log_project3.h>
+#include <robot.h>
 
 #define MAX_WAIT_TIME	5
 
@@ -25,11 +26,42 @@ static int wait_time(int argc, char *argv[])
 	return 0;
 }
 
+static int wait_stand(int argc, char *argv[])
+{
+	struct interface_info *info;
+
+	info = get_interface_info();
+
+	update_gyroscope();
+
+	if (info->ax > -14000) {
+		log_err();
+		return -1;
+	}
+
+	if (abs(info->ay) > 4000) {
+		log_err();
+		return -1;
+	}
+
+	if (abs(info->az) > 8000) {
+		log_err();
+		return -1;
+	}
+
+	return 0;
+}
+
 static struct input_cmd sub_cmd[] = {
 	{
         .str = "time",
         .func = wait_time,
 	.info = "example: wait time 10"
+	},
+	{
+        .str = "stand",
+        .func = wait_stand,
+	.info = "example: wait stand"
 	},
 };
 

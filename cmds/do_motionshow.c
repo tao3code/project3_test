@@ -7,13 +7,24 @@
 #include <input_cmd.h>
 #include <robot.h>
 
+static struct cylinder_info *info;
+static int count;
+
+static void update_motion_state(void)
+{
+        int i;
+
+        for (i = 0; i < count; i++) {
+		if (!info[i].dev.id)
+			continue;
+                update_cylinder_len(&info[i]);
+	}
+}
+
 static void update_motion_window(void)
 {
-	const struct cylinder_info *info;
-	int count;
 	int i;
 
-	info = get_motion_info(&count);
 	werase(motion_win);
 	for (i = 0; i < count; i++) {
 		if (!info[i].dev.id)
@@ -36,11 +47,9 @@ static int motionshow_on = 0;
 
 static void *motionshow_thread_func(void *arg)
 {
-	int *on = arg;
-
 	log_info("%s start\n", __FUNCTION__);
 
-	while (*on) {
+	while (motionshow_on) {
 		sleep(1);
 		update_motion_state();
 		update_motion_window();
@@ -60,7 +69,7 @@ static int do_motionshow(int argc, char *argv[])
 			return 0;
 		motionshow_on = 1;
 		return pthread_create(&motionshow_thread, 0,
-				      motionshow_thread_func, &motionshow_on);
+				      motionshow_thread_func, NULL);
 	}
 
 	if (!strcmp(argv[1], "off")) {
@@ -82,6 +91,7 @@ static struct input_cmd cmd = {
 
 static int reg_cmd(void)
 {
+	info = get_motion_info(&count);
 	register_cmd(&cmd);
 	return 0;
 }

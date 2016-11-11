@@ -13,7 +13,6 @@ static int air_on = 0;
 
 static void *air_thread_func(void *arg)
 {
-	int *on = arg;
 	const struct interface_info *info;
 	char air;
 	int need_run;
@@ -23,13 +22,15 @@ static void *air_thread_func(void *arg)
 	info = get_interface_info();
 	log_info("%s start\n", __FUNCTION__);
 
-	while (*on) {
-
+	while (air_on) {
+		update_presure();
 		if (info->vol < VOLTAGE_LOW) {
-			log_info("low voltage!\n");
-			break;
+			update_voltage();
+			if (info->vol < VOLTAGE_LOW) {
+				log_info("low voltage!\n");
+				break;
+			}
 		}
-
 		air = info->air;
 		if (air < AIR_THRESHOLD_L)
 			need_run = 1;
@@ -41,7 +42,9 @@ static void *air_thread_func(void *arg)
 		}
 
 		run_count =
-		    (AIR_THRESHOLD_H - air) * 255 / AIR_THRESHOLD_H + 16;
+		    (AIR_THRESHOLD_H - air) * 255 / AIR_THRESHOLD_H;
+		if (run_count < 24)
+			run_count = 24;
 		engine_on(run_count);
 		log_info("engine_on(%d)\n", run_count);
 		wait_count = run_count * 4 / 255;
@@ -51,6 +54,7 @@ static void *air_thread_func(void *arg)
 		update_presure();
 	}
 
+	air_on = 0;
 	log_info("%s stop\n", __FUNCTION__);
 
 	return 0;
@@ -64,7 +68,7 @@ static int do_air(int argc, char *argv[])
 		if (air_on)
 			return 0;
 		air_on = 1;
-		return pthread_create(&air_thread, 0, air_thread_func, &air_on);
+		return pthread_create(&air_thread, 0, air_thread_func, NULL);
 	}
 
 	if (!strcmp(argv[1], "off")) {

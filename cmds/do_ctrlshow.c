@@ -7,13 +7,22 @@
 #include <input_cmd.h>
 #include <robot.h>
 
-void update_control_window(void)
+static const struct interface_info *info;
+
+static void update_control_state(void)
 {
-	const struct interface_info *info;
+	if (!info->dev.id)
+		return; 
+        update_voltage();
+        update_presure();
+        update_gyroscope();
+        update_meg12v();
+}
+
+static void update_control_window(void)
+{
 	time_t uts;
 	struct tm *t; 
-
-	info = get_interface_info();
 
 	uts = time(NULL);
 	t = localtime(&uts);
@@ -46,12 +55,10 @@ static int ctrlshow_on = 0;
 
 static void *ctrlshow_thread_func(void *arg)
 {
-	int *on = arg;
-
 	log_info("%s start\n", __FUNCTION__);
 
-	while (*on) {
-		usleep(100);
+	while (ctrlshow_on) {
+		sleep(1);
 		update_control_state();
 		update_control_window();
 	}
@@ -71,7 +78,7 @@ static int do_ctrlshow(int argc, char *argv[])
 			return 0;
 		ctrlshow_on = 1;
 		return pthread_create(&ctrlshow_thread, 0,
-				      ctrlshow_thread_func, &ctrlshow_on);
+				      ctrlshow_thread_func, NULL);
 	}
 
 	if (!strcmp(argv[1], "off")) {
@@ -93,6 +100,7 @@ static struct input_cmd cmd = {
 
 static int reg_cmd(void)
 {
+	info = get_interface_info();
 	register_cmd(&cmd);
 	return 0;
 }

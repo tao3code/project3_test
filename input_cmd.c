@@ -296,11 +296,11 @@ static struct mod_info {
 
 static char cmd_buf[256];
 
-int inline run_cmd(char *cmd_in)
+char *check_cmd(char *cmd_in)
 {
 	char *cmd = cmd_in;
 	char *cmd_out = 0;
-	
+
 	while(!cmd_out) {
 		switch(*cmd) {
 		case ' ':
@@ -308,17 +308,36 @@ int inline run_cmd(char *cmd_in)
 		case '\t':
 		case '\r':
 			break;
+		case '#':
+			return 0;
 		default:
-			if (!*cmd)
+			if (*cmd < 0x20)
 				return 0;
-			cmd_out = cmd;
+			if (*cmd > 0x7e)
+				return 0;
+			if (*cmd)
+				cmd_out = cmd;
 		}
 		cmd++;
 	}
 
-	log_info("%s %s\n", modes[cmd_mod].name, cmd_out);	
+	return cmd_out;
+}
+
+int inline run_cmd(char *cmd_in)
+{
+	char *cmd;
+
+	cmd = check_cmd(cmd_in);
+
+	if (!cmd) {
+		log_err();
+		return -1;
+	}
+
+	log_info("%s %s\n", modes[cmd_mod].name, cmd);	
 		
-	return modes[cmd_mod].func(cmd_out);
+	return modes[cmd_mod].func(cmd);
 }
 
 #define ENTER	0x0d
