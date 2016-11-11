@@ -11,6 +11,7 @@ struct cylinder_info {
 	const struct fix_info {
 		unsigned short mm;
 		unsigned short count;
+		unsigned d;
 	} fix;
 	char force;
 	const char type;
