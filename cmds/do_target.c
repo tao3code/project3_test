@@ -29,15 +29,34 @@ static int target_list(int argc, char *argv[])
 {
 	char str[256];
 	int len = 0;
-	struct target *list; 
+	struct target *t; 
+	int i, j;
 
 	memset(str, 0, sizeof(str));
 
-	list = find_target(NULL);
+	if (argc == 1) {	
+		t = find_target(NULL);
 
-	while(list) {
-		len += sprintf(&str[len], "%s ", list->name);
-		list = list->next;
+		while(t) {
+			len += sprintf(&str[len], "%s ", t->name);
+			t = t->next;
+		}
+	}
+
+	if (argc > 1) {
+		for (i = 1; i < argc; i++) {
+			t = find_target(argv[i]);
+			if (!t)
+				continue;
+			len += sprintf(&str[len], "%s:", t->name);
+			for (j = 0; j < t->num; j++) {
+				if (t->info[j].inactive)
+					continue;
+				len += sprintf(&str[len], "[%d] %hu %x,", 
+					j, t->info[j].len, t->info[j].force);
+			}
+			len += sprintf(&str[len], ";\n");
+		}
 	}
 
 	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s\n", str);
