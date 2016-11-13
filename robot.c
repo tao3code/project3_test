@@ -11,18 +11,18 @@
 #define TYPE_N	1
 
 static struct cylinder_info motion_state[] = {
-	[0] {.dev = {.ack = MESSAGE_1},.type = TYPE_N,.fix = {25, 237,}},
-	[1] {.dev = {.ack = MESSAGE_7},.type = TYPE_P,.fix = {25, 236,}},
-	[2] {.dev = {.ack = MESSAGE_2},.type = TYPE_P,.fix = {25, 240,}},
-	[3] {.dev = {.ack = MESSAGE_8},.type = TYPE_N,.fix = {25, 243,}},
-	[4] {.dev = {.ack = MESSAGE_3},.type = TYPE_N,.fix = {140, 1400,}},
-	[5] {.dev = {.ack = MESSAGE_9},.type = TYPE_P,.fix = {140, 1427,}},
-	[6] {.dev = {.ack = MESSAGE_4},.type = TYPE_N,.fix = {125, 1180,}},
-	[7] {.dev = {.ack = MESSAGE_A},.type = TYPE_P,.fix = {125, 1150,}},
-	[8] {.dev = {.ack = MESSAGE_5},.type = TYPE_P,.fix = {50, 500,}},
-	[9] {.dev = {.ack = MESSAGE_B},.type = TYPE_N,.fix = {50, 472,}},
-	[10] {.dev = {.ack = MESSAGE_6},.type = TYPE_N,.fix = {50, 494,}},
-	[11] {.dev = {.ack = MESSAGE_C},.type = TYPE_P,.fix = {50, 436,}},
+	[0] {.dev = {.ack = MESSAGE_1},.type = TYPE_N,.fix = {25, 237,25}},
+	[1] {.dev = {.ack = MESSAGE_7},.type = TYPE_P,.fix = {25, 236,25}},
+	[2] {.dev = {.ack = MESSAGE_2},.type = TYPE_P,.fix = {25, 240,25}},
+	[3] {.dev = {.ack = MESSAGE_8},.type = TYPE_N,.fix = {25, 243,25}},
+	[4] {.dev = {.ack = MESSAGE_3},.type = TYPE_N,.fix = {140, 1400,40}},
+	[5] {.dev = {.ack = MESSAGE_9},.type = TYPE_P,.fix = {140, 1427,40}},
+	[6] {.dev = {.ack = MESSAGE_4},.type = TYPE_N,.fix = {125, 1180,40}},
+	[7] {.dev = {.ack = MESSAGE_A},.type = TYPE_P,.fix = {125, 1150,40}},
+	[8] {.dev = {.ack = MESSAGE_5},.type = TYPE_P,.fix = {50, 500,25}},
+	[9] {.dev = {.ack = MESSAGE_B},.type = TYPE_N,.fix = {50, 472,25}},
+	[10] {.dev = {.ack = MESSAGE_6},.type = TYPE_N,.fix = {50, 494,25}},
+	[11] {.dev = {.ack = MESSAGE_C},.type = TYPE_P,.fix = {50, 436,25}},
 };
 
 static struct interface_info control_state = {.dev = {.ack = MESSAGE_0} };

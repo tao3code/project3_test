@@ -14,6 +14,7 @@ struct cylinder_info {
 		unsigned d;
 	} fix;
 	char force;
+	char inactive; 
 	const char type;
 	union {
 		volatile unsigned short len;

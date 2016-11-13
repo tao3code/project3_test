@@ -1,92 +1,78 @@
-#include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <init.h>
 #include <input_cmd.h>
 #include <log_project3.h>
 #include <robot.h>
+#include <target.h>
 
-static struct cylinder_info *motion_target;
-static int ntarget;
-static struct cylinder_info *motion_current;
-
-static int target_set(int argc, char *argv[])
+static int target_alloc(int argc, char *argv[])
 {
-	int i;
-	unsigned short len;
-	struct cylinder_info *info;	
-
-	if (argc != 3 && argc != 4) {
-		log_err();
-		return -1;
-	}
-
-	i = atoi(argv[1]);
-        if(i < 0 || i >= ntarget) {
-                log_err();
-                return -1;
-        }
-
-	info = &motion_target[i];
-	
-	len = atoi(argv[2]);
-	if (len < ENCODER_OFFSET)
-		len = ENCODER_OFFSET;
-	if (len > info->fix.count)
-		len = info->fix.count;
-
-	info->len = len;
-	
-	if (argc == 3) {
-		info->force = 0;
-		return 0;
-	}
-
-	if (!strcmp(argv[3], "push")) {
-		info->force = '+';
-		return 0;
-	}
-	
-	if (!strcmp(argv[3], "pull")) {
-		info->force = '-';
-		return 0;
-	}
-
-	log_err();
-	return -1;
-}
-
-static int target_sync(int argc, char *argv[])
-{
-	int i;
-
 	if (argc != 2) {
 		log_err();
 		return -1;
 	}
 
-	i = atoi(argv[1]);
-	if(i < 0 || i >= ntarget) {
+	return alloc_target(argv[1]);
+}
+
+static int target_free(int argc, char *argv[])
+{
+	if (argc != 2) {
 		log_err();
 		return -1;
 	}
 
-	update_cylinder_len(&motion_current[i]);		
-	memcpy(&motion_target[i], &motion_current[i], sizeof(struct cylinder_info));	
+	return free_target(argv[1]);
+}
 
+static int target_list(int argc, char *argv[])
+{
+	char str[256];
+	int len = 0;
+	struct target *list; 
+
+	memset(str, 0, sizeof(str));
+
+	list = find_target(NULL);
+
+	while(list) {
+		len += sprintf(&str[len], "%s ", list->name);
+		list = list->next;
+	}
+
+	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s\n", str);
+	
 	return 0;
 }
+/*
+static int target_setlen(int argc, char *argv[])
+{
+//	struct target *t;
+
+	if (argc != 3) {
+		log_err();
+		return -1;
+	}
+	
+	return 0;
+}
+*/
 
 static struct input_cmd sub_cmd[] = {
 	{
-        .str = "sync",
-        .func = target_sync,
-	.info = "example: 'target sync 0'"
+        .str = "alloc",
+        .func = target_alloc,
+	.info = "example: 'target alloc stand_target'"
 	},
 	{
-        .str = "set",
-        .func = target_set,
-	.info = "example: 'target set 0 128', or 'target set 0 128 push/pull'"
+        .str = "free",
+        .func = target_free,
+	.info = "example: 'target free stand_target'"
+	},
+	{
+        .str = "list",
+        .func = target_list,
+	.info = "example: 'target list'"
 	},
 };
 
@@ -123,32 +109,15 @@ static int reg_cmd(void)
 {
 	int i;
 	int len = 0;
-	
+
 	for (i = 0; i < NSUB_CMD; i ++) {
 		if (! sub_cmd[i].info)
 			continue;
 		len += sprintf(&help_info[len], " %s\n", sub_cmd[i].info);
 	}
 
-	motion_current = get_motion_info(&ntarget);
-
-	motion_target = malloc(sizeof(struct cylinder_info) * ntarget);
-	if (!motion_target) {
-		log_system_err(__FUNCTION__);
-		return errno;
-	}
-
-	memcpy(motion_target, motion_current, sizeof(struct cylinder_info) * ntarget);	 
-
 	register_cmd(&cmd);
 	return 0;
 }
 
-static void exit_cmd(void)
-{
-	if(motion_target)
-		free(motion_target);
-} 
-
 init_func(reg_cmd);
-exit_func(exit_cmd);

@@ -1,0 +1,20 @@
+# open serial port
+serial on
+
+# detect hardware
+detect
+
+# monitoring interface board
+ctrlshow on
+
+# monotoring cylinders
+motionshow on
+
+# start engine
+air on
+
+# turn on megnet 12v power
+meg on
+
+# wait presure ready
+wait time 10 

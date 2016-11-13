@@ -4,7 +4,10 @@
 
 static int do_test(int argc, char *argv[])
 {
-	return run_cmd("run example/test.txt");
+	run_cmd("run example/test_00.txt");
+	run_cmd("run example/test_01.txt");
+
+	return 0;
 }
 
 static struct input_cmd cmd = {
