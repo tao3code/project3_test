@@ -342,6 +342,7 @@ int inline run_cmd(char *cmd_in)
 
 #define ENTER	0x0d
 #define BACKS	0x7f
+#define DELET	0x08
 
 static char *scan_cmd_buf(void)
 {
@@ -352,7 +353,7 @@ static char *scan_cmd_buf(void)
 	i = 0;
 	do {
 		ch = getchar();
-		if (ch == BACKS) {
+		if (ch == BACKS || ch == DELET) {
 			if (i == 0)
 				continue;
 			i--;
