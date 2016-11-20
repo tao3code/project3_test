@@ -17,4 +17,4 @@ air on
 meg on
 
 # wait presure ready
-wait time 20 
+wait air 30 

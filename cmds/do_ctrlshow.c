@@ -58,9 +58,9 @@ static void *ctrlshow_thread_func(void *arg)
 	log_info("%s start\n", __FUNCTION__);
 
 	while (ctrlshow_on) {
-		sleep(1);
 		update_control_state();
 		update_control_window();
+		sleep(1);
 	}
 
 	log_info("%s stop\n", __FUNCTION__);

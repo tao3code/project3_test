@@ -1,10 +1,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 #include <init.h>
 #include <input_cmd.h>
 #include <log_project3.h>
 #include <robot.h>
+
+static struct interface_info *info;
 
 #define MAX_WAIT_TIME	5
 
@@ -26,12 +29,40 @@ static int wait_time(int argc, char *argv[])
 	return 0;
 }
 
+static int wait_air(int argc, char *argv[])
+{
+	int time_out;
+	time_t start, end;
+
+	if (argc != 2) {
+		log_err();
+		return -1;
+	}
+
+	time_out = atoi(argv[1]);
+	if (time_out <= 0 || time_out > 30) {
+		log_info("%s, time_out:%d out of range 1~30\n",
+			__FUNCTION__, time_out);
+		return -1;
+	}
+ 
+	start = time(NULL);
+        end = time(NULL);
+        while ((end - start) < time_out) {
+		update_presure();
+                if (info->air > AIR_THRESHOLD_OFF) {
+                        return 0;
+                }
+                usleep(500);
+                end = time(NULL);
+        }
+
+	log_info("%s, time out:%d\n", __FUNCTION__, time_out);
+        return -1;
+}
+
 static int wait_stand(int argc, char *argv[])
 {
-	struct interface_info *info;
-
-	info = get_interface_info();
-
 	update_gyroscope();
 
 	if (info->ax > -14000) {
@@ -62,6 +93,11 @@ static struct input_cmd sub_cmd[] = {
         .str = "stand",
         .func = wait_stand,
 	.info = "example: wait stand"
+	},
+	{
+        .str = "air",
+        .func = wait_air,
+	.info = "example: wait air 10"
 	},
 };
 
@@ -98,6 +134,8 @@ static int reg_cmd(void)
 {
 	int i;
 	int len = 0;
+
+	info = get_interface_info();
 	
 	for (i = 0; i < NSUB_CMD; i ++) {
 		if (! sub_cmd[i].info)

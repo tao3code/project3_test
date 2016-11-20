@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <time.h>
 #include <pthread.h>
 #include <init.h>
 #include <input_cmd.h>

@@ -6,23 +6,6 @@
 #include <log_project3.h>
 #include <robot.h>
 
-static int wait_air_ready(void)
-{
-	time_t start, end;
-	const struct interface_info *info = get_interface_info();
-
-	start = time(NULL);
-	end = time(NULL);
-	while ((end - start) < 2) {
-		if (info->air > AIR_THRESHOLD_OFF) {
-			return 0;
-		}
-		usleep(200);
-		end = time(NULL);
-	}
-	return -1;
-}
-
 int do_len(int argc, char *argv[])
 {
 	struct interface_info *ifo;
@@ -61,7 +44,7 @@ int do_len(int argc, char *argv[])
 
 	val = atoi(argv[2]);
 
-	if (wait_air_ready()) {
+	if (run_cmd("wait air 2")) {
 		log_info("%s, pressure is low, stop!\n", __FUNCTION__);
 		return -1;
 	}
