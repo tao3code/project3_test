@@ -65,6 +65,7 @@ int megnet(struct cylinder_info *cy, int count);
 #define AIR_THRESHOLD_OFF	60
 
 #define VOLTAGE_LOW		170
+#define VOLTAGE_OVE		200	
 
 #define ENCODER_OFFSET		128
 

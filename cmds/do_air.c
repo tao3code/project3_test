@@ -22,14 +22,24 @@ static void *air_thread_func(void *arg)
 	log_info("%s start\n", __FUNCTION__);
 
 	while (air_on) {
-		update_presure();
+		update_voltage();
 		if (info->vol < VOLTAGE_LOW) {
+			sleep(1);
 			update_voltage();
 			if (info->vol < VOLTAGE_LOW) {
-				log_info("low voltage!\n");
+				log_info("low voltage:%d!\n", info->vol);
 				break;
 			}
 		}
+		if (info->vol > VOLTAGE_OVE) {
+			update_voltage();
+			sleep(1);
+			if (info->vol > VOLTAGE_OVE) {
+				log_info("high voltage:%d!\n", info->vol);
+				break;
+			}
+		}
+		update_presure();
 		air = info->air;
 		if (air < AIR_THRESHOLD_L)
 			need_run = 1;
