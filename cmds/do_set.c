@@ -29,7 +29,7 @@ static int do_set(int argc, char *argv[])
 	}
 
 	if (!strcmp(argv[2], "max")) {
-		val = info[index].fix.count + ENCODER_OFFSET;
+		val = info[index].mea.count + ENCODER_OFFSET;
 		return set_encoder(&info[index], val);
 	}
 

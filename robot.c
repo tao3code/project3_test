@@ -11,18 +11,54 @@
 #define TYPE_N	1
 
 static struct cylinder_info motion_state[] = {
-	[0] {.dev = {.ack = MESSAGE_1},.type = TYPE_N,.fix = {25, 237,25}},
-	[1] {.dev = {.ack = MESSAGE_7},.type = TYPE_P,.fix = {25, 236,25}},
-	[2] {.dev = {.ack = MESSAGE_2},.type = TYPE_P,.fix = {25, 240,25}},
-	[3] {.dev = {.ack = MESSAGE_8},.type = TYPE_N,.fix = {25, 243,25}},
-	[4] {.dev = {.ack = MESSAGE_3},.type = TYPE_N,.fix = {140, 1400,40}},
-	[5] {.dev = {.ack = MESSAGE_9},.type = TYPE_P,.fix = {140, 1427,40}},
-	[6] {.dev = {.ack = MESSAGE_4},.type = TYPE_N,.fix = {125, 1180,40}},
-	[7] {.dev = {.ack = MESSAGE_A},.type = TYPE_P,.fix = {125, 1150,40}},
-	[8] {.dev = {.ack = MESSAGE_5},.type = TYPE_P,.fix = {50, 500,25}},
-	[9] {.dev = {.ack = MESSAGE_B},.type = TYPE_N,.fix = {50, 472,25}},
-	[10] {.dev = {.ack = MESSAGE_6},.type = TYPE_N,.fix = {50, 494,25}},
-	[11] {.dev = {.ack = MESSAGE_C},.type = TYPE_P,.fix = {50, 436,25}},
+	[0] {.dev = {.ack = MESSAGE_1},
+	     .type = TYPE_N,
+	     .fix = {25, 100},
+	     .mea = {237,}},
+	[1] {.dev = {.ack = MESSAGE_7},
+	     .type = TYPE_P,
+	     .fix = {25, 100},
+	     .mea = {236,}},
+	[2] {.dev = {.ack = MESSAGE_2},
+	     .type = TYPE_P,
+	     .fix = {25, 100},
+	     .mea = {240,}},
+	[3] {.dev = {.ack = MESSAGE_8},
+	     .type = TYPE_N,
+	     .fix = {25, 100},
+	     .mea = {243,}},
+	[4] {.dev = {.ack = MESSAGE_3},
+	     .type = TYPE_N,
+	     .fix = {140, 400},
+	     .mea = {1400,}},
+	[5] {.dev = {.ack = MESSAGE_9},
+	     .type = TYPE_P,
+	     .fix = {140, 400},
+	     .mea = {1427,}},
+	[6] {.dev = {.ack = MESSAGE_4},
+	     .type = TYPE_N,
+	     .fix = {125, 400},
+	     .mea = {1180,}},
+	[7] {.dev = {.ack = MESSAGE_A},
+	     .type = TYPE_P,
+	     .fix = {125, 400},
+	     .mea = {1150,}},
+	[8] {.dev = {.ack = MESSAGE_5},
+	     .type = TYPE_P,
+	     .fix = {50, 100},
+	     .mea = {500,}},
+	[9] {.dev = {.ack = MESSAGE_B},
+	     .type = TYPE_N,
+	     .fix = {50, 100},
+	     .mea = {472,}},
+	[10] {.dev = {.ack = MESSAGE_6},
+	      .type = TYPE_N,
+	      .fix = {50, 100},
+	      .mea = {494,}},
+	[11] {.dev = {.ack = MESSAGE_C},
+	      .type = TYPE_P,
+	      .fix = {50, 100},
+	      .mea = {436,}},
 };
 
 static struct interface_info control_state = {.dev = {.ack = MESSAGE_0} };
@@ -130,7 +166,7 @@ static int msg_scan_data(char *msg, char *fmt, unsigned char *data, int n)
 			*data |= c2x(msg[pmsg]);
 			data++;
 			break;
-			
+
 		default:
 			if (fmt[pfmt] != msg[pmsg]) {
 				log_info("%s mismatch: "
@@ -192,7 +228,7 @@ int update_voltage(void)
 
 	if (!control_state.dev.id) {
 		log_info("%s, no interface board!\n", __FUNCTION__);
-                return -1;
+		return -1;
 	}
 
 	memset(cmd, 0, sizeof(cmd));
@@ -213,7 +249,7 @@ int update_presure(void)
 
 	if (!control_state.dev.id) {
 		log_info("%s, no interface board!\n", __FUNCTION__);
-                return -1;
+		return -1;
 	}
 
 	memset(cmd, 0, sizeof(cmd));
@@ -237,7 +273,7 @@ int update_gyroscope(void)
 
 	if (!control_state.dev.id) {
 		log_info("%s, no interface board!\n", __FUNCTION__);
-                return -1;
+		return -1;
 	}
 
 	memset(cmd, 0, sizeof(cmd));
@@ -263,13 +299,13 @@ int update_meg12v(void)
 
 	if (!control_state.dev.id) {
 		log_info("%s, no interface board!\n", __FUNCTION__);
-                return -1;
+		return -1;
 	}
 
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, ">%c meg12v 3;", control_state.dev.id);
 	ret = get_byte(cmd, MESSAGE_MEG, &control_state.m12v, 1);
-	control_state.m12v = !control_state.m12v;	
+	control_state.m12v = !control_state.m12v;
 
 	if (ret) {
 		log_err();
@@ -383,8 +419,7 @@ int megnet(struct cylinder_info *cy, int count)
 	}
 
 	if (count < 0 && count > -255) {
-		sprintf(str, ">%c dec %2x;", cy->dev.id,
-			abs(count));
+		sprintf(str, ">%c dec %2x;", cy->dev.id, abs(count));
 		send_cmd(str);
 		cy->force = '-';
 		return 0;

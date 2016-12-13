@@ -9,12 +9,18 @@ struct device {
 struct cylinder_info {
 	struct device dev;
 	const struct fix_info {
-		unsigned short mm;
-		unsigned short count;
-		unsigned d;
+		unsigned short range;
+		unsigned short area;
 	} fix;
+	const struct measured_info {
+		unsigned short count;
+		unsigned char p_air;
+		unsigned char n_air;
+		unsigned char p_vol;
+		unsigned char n_vol;
+	} mea;
 	char force;
-	char inactive; 
+	char inactive;
 	const char type;
 	union {
 		volatile unsigned short len;
@@ -65,7 +71,7 @@ int megnet(struct cylinder_info *cy, int count);
 #define AIR_THRESHOLD_OFF	60
 
 #define VOLTAGE_LOW		170
-#define VOLTAGE_OVE		200	
+#define VOLTAGE_OVE		200
 
 #define ENCODER_OFFSET		128
 
