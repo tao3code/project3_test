@@ -8,7 +8,7 @@
 #include <robot.h>
 
 static pthread_t air_thread = 0;
-static int air_on = 0;
+char *air_state;
 
 static void *air_thread_func(void *arg)
 {
@@ -21,7 +21,7 @@ static void *air_thread_func(void *arg)
 	info = get_interface_info();
 	log_info("%s start\n", __FUNCTION__);
 
-	while (air_on) {
+	while (!strcmp(air_state, "on")) {
 		update_voltage();
 		if (info->vol < VOLTAGE_LOW) {
 			sleep(1);
@@ -63,7 +63,7 @@ static void *air_thread_func(void *arg)
 		update_presure();
 	}
 
-	air_on = 0;
+	air_state = "off";
 	log_info("%s stop\n", __FUNCTION__);
 
 	return 0;
@@ -74,16 +74,16 @@ static int do_air(int argc, char *argv[])
 	if (argc != 2)
 		return -1;
 	if (!strcmp(argv[1], "on")) {
-		if (air_on)
+		if (!strcmp(air_state, "on"))
 			return 0;
-		air_on = 1;
+		air_state = "on";
 		return pthread_create(&air_thread, 0, air_thread_func, NULL);
 	}
 
 	if (!strcmp(argv[1], "off")) {
-		if (!air_on)
+		if (!strcmp(air_state, "off"))
 			return 0;
-		air_on = 0;
+		air_state = "off";
 		pthread_join(air_thread, 0);
 		return 0;
 	}
@@ -99,14 +99,15 @@ static struct input_cmd cmd = {
 
 static int reg_cmd(void)
 {
+	air_state = "off";
 	register_cmd(&cmd);
 	return 0;
 }
 
 static void clean_cmd(void)
 {
-	if (air_on) {
-		air_on = 0;
+	if (!strcmp(air_state, "on")) {
+		air_state = "off";
 		pthread_join(air_thread, 0);
 	}
 

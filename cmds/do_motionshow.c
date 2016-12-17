@@ -12,12 +12,12 @@ static int count;
 
 static void update_motion_state(void)
 {
-        int i;
+	int i;
 
-        for (i = 0; i < count; i++) {
+	for (i = 0; i < count; i++) {
 		if (!info[i].dev.id)
 			continue;
-                update_cylinder_len(&info[i]);
+		update_cylinder_state(&info[i]);
 	}
 }
 
@@ -30,7 +30,9 @@ static void update_motion_window(void)
 		if (!info[i].dev.id)
 			wprintw(motion_win, "len[%d]: NULL", i);
 		else
-			wprintw(motion_win, "len[%d]: %hu", i, info[i].len);
+			wprintw(motion_win, "len[%d]: %hu,%hd,%x",
+				i, info[i].var.len, info[i].var.speed,
+				info[i].var.port);
 
 		if (i & 0x1)
 			waddch(motion_win, '\n');

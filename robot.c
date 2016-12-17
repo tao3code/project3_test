@@ -315,7 +315,7 @@ int update_meg12v(void)
 	return 0;
 }
 
-int update_cylinder_len(struct cylinder_info *cy)
+int update_cylinder_state(struct cylinder_info *cy)
 {
 	char cmd[16];
 	int ret;
@@ -326,7 +326,7 @@ int update_cylinder_len(struct cylinder_info *cy)
 	}
 
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c count;", cy->dev.id);
+	sprintf(cmd, ">%c state;", cy->dev.id);
 	ret = get_byte(cmd, MESSAGE_ENC, res, sizeof(res));
 
 	if (ret) {
@@ -334,11 +334,23 @@ int update_cylinder_len(struct cylinder_info *cy)
 		return -1;
 	}
 
-	cy->raw[0] = res[2];
-	cy->raw[1] = res[1];
+	cy->var.id = res[0];
 
-	if (cy->type == TYPE_N)
-		cy->len = 0xffff - cy->len;
+	if (cy->dev.id != cy->var.id) {
+		log_err();
+		log_info("size cy->var:%d\n", sizeof(cy->var));
+		return -1;
+	}
+
+	if (cy->type == TYPE_N) {
+		cy->var.len = 0xffff - (res[1] << 8) - res[2];
+		cy->var.speed = -1 * (res[3] << 8) - res[4];
+	} else {
+		cy->var.len = (res[1] << 8) + res[2];
+		cy->var.speed = (res[3] << 8) + res[4];
+	}
+
+	cy->var.port = res[5];
 
 	return 0;
 }

@@ -49,7 +49,7 @@
 #define MESSAGE_GYRO	"ACC_XYZ:\x8\x8 \x8\x8 \x8\x8, " \
 					  	"THERMAL:\x8\x8, "				\
 					  	"GYR_XYZ:\x8\x8 \x8\x8 \x8\x8\n\r"
-#define MESSAGE_ENC		"ENC(\x8):\x8\x8\n\r"
+#define MESSAGE_ENC		"ENC_CSP(\x8):\x8\x8 \x8\x8 \x8\n\r"
 #define MESSAGE_OK		"DONE\n\r"
 #define MESSAGE_MEG		"MEG12V:\x8\n\r"
 /* return walue for CMD_GETERR */

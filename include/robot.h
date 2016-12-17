@@ -23,10 +23,13 @@ struct cylinder_info {
 	char inactive;
 	const char type;
 	union {
-		volatile unsigned short len;
-		struct {
-			volatile unsigned char raw[3];
-		};
+		struct cy_var {
+			volatile unsigned char port;
+			volatile short int speed;
+			volatile unsigned short len;
+			volatile unsigned char id;
+		} var;
+		char raw[6];
 	};
 };
 
@@ -62,7 +65,7 @@ int update_gyroscope(void);
 int meg12v_on(char state);
 int engine_on(int count);
 
-int update_cylinder_len(struct cylinder_info *cy);
+int update_cylinder_state(struct cylinder_info *cy);
 int set_encoder(struct cylinder_info *cy, int val);
 int megnet(struct cylinder_info *cy, int count);
 

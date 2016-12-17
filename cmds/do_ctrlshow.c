@@ -40,7 +40,7 @@ static void update_control_window(void)
 	}
 
 	wprintw(ctrl_win, "vol: %u\n", info->vol);
-	wprintw(ctrl_win, "air: %u\n", info->air);
+	wprintw(ctrl_win, "air(%s): %u\n", air_state, info->air);
 	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", info->gx, info->gy, info->gz);
 	wprintw(ctrl_win, "thm: %hd\n", info->thermal);
 	wprintw(ctrl_win, "acc: %hd %hd %hd\n", info->ax, info->ay, info->az);
