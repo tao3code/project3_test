@@ -6,6 +6,7 @@
 #include <log_project3.h>
 #include <input_cmd.h>
 #include <robot.h>
+#include <stdcmd.h>
 
 static const struct interface_info *info;
 
@@ -53,6 +54,15 @@ static void update_control_window(void)
 static pthread_t ctrlshow_thread = 0;
 static int ctrlshow_on = 0;
 
+static int step = 1000000;
+
+static int check_step(void)
+{
+	if (step < 1000 || step > 1000000)
+		return -1;
+	return 0;
+}
+
 static void *ctrlshow_thread_func(void *arg)
 {
 	log_info("%s start\n", __FUNCTION__);
@@ -60,7 +70,7 @@ static void *ctrlshow_thread_func(void *arg)
 	while (ctrlshow_on) {
 		update_control_state();
 		update_control_window();
-		sleep(1);
+		usleep(step);
 	}
 
 	log_info("%s stop\n", __FUNCTION__);
@@ -68,12 +78,26 @@ static void *ctrlshow_thread_func(void *arg)
 	return 0;
 }
 
-static int do_ctrlshow(int argc, char *argv[])
-{
-	if (argc != 2)
-		return -1;
+static char state[MAX_VAL_LEN] = "off";
 
-	if (!strcmp(argv[1], "on")) {
+static int check_state(void)
+{
+        if (!strcmp(state, "on"))
+                return 0;
+        if (!strcmp(state, "off"))
+                return 0;
+        return -1;
+}
+
+static struct func_arg thread_args[] = {
+	{.name = "state", .var = state, .type = "%s", .check = check_state},
+	{.name = "step", .var = &step, .type = "%d", .check = check_step},
+	{0},
+};
+
+static int thread(struct func_arg *args)
+{
+	if (!strcmp(state, "on")) {
 		if (ctrlshow_on)
 			return 0;
 		ctrlshow_on = 1;
@@ -81,7 +105,7 @@ static int do_ctrlshow(int argc, char *argv[])
 				      ctrlshow_thread_func, NULL);
 	}
 
-	if (!strcmp(argv[1], "off")) {
+	if (!strcmp(state, "off")) {
 		if (!ctrlshow_on)
 			return 0;
 		ctrlshow_on = 0;
@@ -92,10 +116,28 @@ static int do_ctrlshow(int argc, char *argv[])
 	return -1;
 }
 
+static struct cmd_func control_funcs[] = {
+	{.name = "thread", .func = thread, .args = thread_args},
+	{0},
+};
+
+static int do_control(int argc, char *argv[])
+{
+        int i;
+        int ret;
+
+        for (i = 1; i < argc; i++) {
+                ret = cmd_run_funcs(argv[i], control_funcs);
+                if (ret)
+                        return -1;
+        }
+        return 0;
+}
+
 static struct input_cmd cmd = {
-	.str = "ctrlshow",
-	.func = do_ctrlshow,
-	.info = "Use 'ctrlshow on' or 'ctrlshow off'",
+	.str = "control",
+	.func = do_control,
+	.info = "Use 'control thread,start=on'",
 };
 
 static int reg_cmd(void)
