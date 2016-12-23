@@ -24,10 +24,15 @@ int main(int argc, const char *argv[])
 		goto input_init_err;
 	}
 
-	do_init_funcs();
+	err = do_init_funcs();
+	if (err) {
+		log_err();
+		goto init_funcs_err;
+	}
 	cmd_loop();
 	do_exit_funcs();
 
+ init_funcs_err:
 	input_cmd_exit();
  input_init_err:
 	close_scr();
