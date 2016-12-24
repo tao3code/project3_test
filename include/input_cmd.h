@@ -18,6 +18,7 @@ struct input_cmd {
 	const char *str;
 	int (*func) (int argc, char *argv[]);
 	const char *info;
+	int (*help) (char *buf, int argc, char *argv[]);
 };
 
 int input_cmd_init(void);

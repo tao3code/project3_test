@@ -68,7 +68,7 @@ void close_scr(void)
 
 #define INPUT_MODE	0
 #define RAW_MODE	1
-#define SILENT_MODE	2	
+#define SILENT_MODE	2
 
 static int cmd_mod = INPUT_MODE;
 
@@ -123,51 +123,41 @@ static struct input_cmd buildin_cmd[] = {
 
 static struct input_cmd *cmd_head = &buildin_cmd[0];
 
-static int list_all_cmds(void)
+static int list_all_cmds(char *buf)
 {
-	char *buf;
-	int len;
+	int len = 0;
 	struct input_cmd *cmd_list = cmd_head;
 
-	buf = malloc(4096);
-	if (!buf) {
-		log_err();
-		return -1;
-	}
-
-	len = 0;
 	while (cmd_list) {
 		len += sprintf(buf + len, " %s", cmd_list->str);
 		cmd_list = cmd_list->next;
 	}
 
-	mvwprintw(input_win, LINES_INPUT - 1, 0, "support:%s", buf);
-	free(buf);
+	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s\n", buf);
 	return 0;
 }
 
+static char help_msg[256];
+
 static int do_help(int argc, char *argv[])
 {
-	int i;
 	int err;
 	struct input_cmd *cmd_list = cmd_head;
 
 	if (argc == 1)
-		return list_all_cmds();
-
-	for (i = 1; i < argc; i++) {
-		err = -1;
-		while (cmd_list) {
-			if (strcmp(argv[i], cmd_list->str)) {
-				cmd_list = cmd_list->next;
-				continue;
-			}
-			mvwprintw(input_win, LINES_INPUT - 1, 0,
-				  "%s:\n\t%s\n", argv[i], cmd_list->info);
-			err = 0;
-			cmd_list = cmd_head;
-			break;
+		return list_all_cmds(help_msg);
+	err = -1;
+	while (cmd_list) {
+		if (strcmp(argv[1], cmd_list->str)) {
+			cmd_list = cmd_list->next;
+			continue;
 		}
+		if (cmd_list->help) {
+			cmd_list->help(help_msg, argc - 1, &argv[1]);
+			mvwprintw(input_win, LINES_INPUT - 1, 0,
+				  "%s\n", help_msg);
+		}
+		return 0;
 	}
 	return err;
 }
@@ -284,15 +274,9 @@ static struct mod_info {
 	int (*func) (char *cmd);
 } modes[] = {
 	[INPUT_MODE] {
-		.name = "input:",
-		.func = input_run_cmd,},
-	[RAW_MODE] {
-		.name = "('noraw' to exit) raw:",
-		.func = raw_run_cmd,},
-	[SILENT_MODE] {
-		.name = "('nosilence' to exit) silent:",
-		.func = silent_run_cmd,},
-};
+	.name = "input:",.func = input_run_cmd,},[RAW_MODE] {
+	.name = "('noraw' to exit) raw:",.func = raw_run_cmd,},[SILENT_MODE] {
+.name = "('nosilence' to exit) silent:",.func = silent_run_cmd,},};
 
 static char cmd_buf[256];
 
@@ -301,8 +285,8 @@ char *check_cmd(char *cmd_in)
 	char *cmd = cmd_in;
 	char *cmd_out = 0;
 
-	while(!cmd_out) {
-		switch(*cmd) {
+	while (!cmd_out) {
+		switch (*cmd) {
 		case ' ':
 		case '\n':
 		case '\t':
@@ -335,8 +319,8 @@ int inline run_cmd(char *cmd_in)
 		return -1;
 	}
 
-	log_info("%s %s\n", modes[cmd_mod].name, cmd);	
-		
+	log_info("%s %s\n", modes[cmd_mod].name, cmd);
+
 	return modes[cmd_mod].func(cmd);
 }
 

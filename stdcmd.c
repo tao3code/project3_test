@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <stdcmd.h>
 #include <log_project3.h>
 
@@ -42,7 +43,7 @@ static int if_equ(const char *str, const char *name)
 	return 1;
 }
 
-static int update_args(const char *in, struct func_arg *args)
+int stdcmd_update_args(const char *in, struct func_arg *args)
 {
 	struct func_arg *arg;
 	const char *str = in;
@@ -108,7 +109,7 @@ static int update_args(const char *in, struct func_arg *args)
 		}
 
 		if (arg->check) {
-			if (arg->check()) {
+			if (arg->check(arg->var)) {
 				gen_err("<-wrong", in, str + w_len);
 				log_info("%s\n", err_msg);
 				return -1;
@@ -123,7 +124,7 @@ static int update_args(const char *in, struct func_arg *args)
 	return 0;
 }
 
-int cmd_run_funcs(const char *in, struct cmd_func *funcs)
+int stdcmd_run_funcs(const char *in, struct cmd_func *funcs)
 {
 	int i = 0;
 	int ret;
@@ -143,7 +144,7 @@ int cmd_run_funcs(const char *in, struct cmd_func *funcs)
 		while (*str == ',')
 			str++;
 		if (*str) {
-			ret = update_args(str, funcs[i].args);
+			ret = stdcmd_update_args(str, funcs[i].args);
 			if (ret)
 				return -1;
 		}
@@ -152,4 +153,73 @@ int cmd_run_funcs(const char *in, struct cmd_func *funcs)
 	gen_err("unsupport->", in, str);
 	log_info("%s\n", err_msg);
 	return -1;
+}
+
+static unsigned long arg_value(const struct func_arg *arg)
+{
+	unsigned long *var_u64 = arg->var;
+
+	if (!strcmp(arg->type, "%s"))
+		return (unsigned long)arg->var;
+	return *var_u64;
+}
+
+static int help_func(char *buf, char *name, struct cmd_func *funcs)
+{
+	const struct cmd_func *func = funcs;
+	const struct func_arg *arg;
+	int len = 0;
+	char fmt[8];
+
+	if (!name) {
+		while (func->name) {
+			len += sprintf(&buf[len], "%s ", func->name);
+			func++;
+		}
+
+		return len;
+	}
+
+	while (func->name) {
+		if (strcmp(name, func->name)) {
+			func++;
+			continue;
+		}
+		len += sprintf(&buf[len], "%s,", func->name);
+		arg = func->args;
+		if (!arg)
+			break;
+		while (arg->name) {
+			if (!arg->type)
+				sprintf(fmt, "%%s=%%d,");
+			else
+				sprintf(fmt, "%%s=%s,", arg->type);
+			len +=
+			    sprintf(&buf[len], fmt, arg->name, arg_value(arg));
+			arg++;
+		}
+		return len;
+	}
+
+	len += sprintf(&buf[len], "unsupport %s", name);
+	return len;
+}
+
+int stdcmd_help(char *buf, struct cmd_func *funcs, int argc, char *argv[])
+{
+	int len = 0;
+	int i;
+
+	if (argc == 0) {
+		len += help_func(&buf[len], 0, funcs);
+	} else {
+		for (i = 0; i < argc; i++) {
+			len += help_func(&buf[len], argv[i], funcs);
+			buf[len] = '\n';
+			len++;
+		}
+		buf[len - 1] = 0;
+	}
+
+	return len;
 }
