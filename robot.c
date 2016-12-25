@@ -315,6 +315,30 @@ int update_meg12v(void)
 	return 0;
 }
 
+int update_engine(void)
+{
+	char cmd[16];
+	int ret;
+
+	if (!control_state.dev.id) {
+		log_info("%s, no interface board!\n", __FUNCTION__);
+		return -1;
+	}
+
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, ">%c engine 0;", control_state.dev.id);
+	ret = get_byte(cmd, MESSAGE_ENGINE, &control_state.engine, 1);
+	control_state.engine >>= 1;
+	control_state.engine = !control_state.engine;
+
+	if (ret) {
+		log_err();
+		return -1;
+	}
+
+	return 0;
+}
+
 int update_cylinder_state(struct cylinder_info *cy)
 {
 	char cmd[16];
@@ -366,7 +390,7 @@ inline struct cylinder_info *get_motion_info(int *arry_size)
 	return motion_state;
 }
 
-int meg12v_on(char state)
+int meg12v_on(int state)
 {
 	char str[16];
 
@@ -376,9 +400,9 @@ int meg12v_on(char state)
 	}
 
 	switch (state) {
-	case '0':
-	case '1':
-		sprintf(str, ">%c meg12v %c;", control_state.dev.id, state);
+	case 0:
+	case 1:
+		sprintf(str, ">%c meg12v %d;", control_state.dev.id, state);
 		send_cmd(str);
 		break;
 	default:

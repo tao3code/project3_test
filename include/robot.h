@@ -36,6 +36,7 @@ struct cylinder_info {
 struct interface_info {
 	struct device dev;
 	volatile unsigned char m12v;
+	volatile unsigned char engine;
 	volatile unsigned char vol;
 	volatile unsigned char air;
 	union {
@@ -60,9 +61,10 @@ int test_device(struct device *dev);
 
 int update_voltage(void);
 int update_meg12v(void);
+int update_engine(void);
 int update_presure(void);
 int update_gyroscope(void);
-int meg12v_on(char state);
+int meg12v_on(int state);
 int engine_on(int count);
 
 int update_cylinder_state(struct cylinder_info *cy);

@@ -104,10 +104,8 @@ int serial_init(void)
 {
 	int err;
 
-	if (serial_fd >= 0) {
-		log_info("Serial port already open, stop!\n");
-		return -1;
-	} 
+	if (serial_fd >= 0) 
+		return 0;
 
 	serial_fd = open(TTYDEV, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (serial_fd < 0) {
@@ -154,9 +152,11 @@ void serial_close(void)
 {
 	pthread_mutex_destroy(&mtx_s);
 	pthread_mutexattr_destroy(&mat_s);
-	close(serial_fd);
+	if (serial_fd >= 0) {
+		close(serial_fd);
+		log_info("%s closed\n", TTYDEV);
+	}	
 	serial_fd = -1;
-	log_info("%s closed\n", TTYDEV);	
 }
 
 int is_serial_on(void)
