@@ -121,6 +121,15 @@ static struct input_cmd buildin_cmd[] = {
 	 },
 };
 
+void print_inputwin(const char *str)
+{
+	scroll(input_win);
+	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s", str);
+	lock_scr();
+	wrefresh(input_win);
+	unlock_scr();
+}
+
 static struct input_cmd *cmd_head = &buildin_cmd[0];
 
 static int list_all_cmds(char *buf)
@@ -133,7 +142,7 @@ static int list_all_cmds(char *buf)
 		cmd_list = cmd_list->next;
 	}
 
-	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s\n", buf);
+	print_inputwin(buf);
 	return 0;
 }
 
@@ -154,8 +163,7 @@ static int do_help(int argc, char *argv[])
 		}
 		if (cmd_list->help) {
 			cmd_list->help(help_msg, argc - 1, &argv[1]);
-			mvwprintw(input_win, LINES_INPUT - 1, 0,
-				  "%s\n", help_msg);
+			print_inputwin(help_msg);
 		}
 		return 0;
 	}
@@ -210,14 +218,16 @@ static int input_run_cmd(char *cmd_in)
 			continue;
 		}
 		err = cmd_list->func(argc, args);
-		if (err)
-			mvwprintw(input_win, LINES_INPUT - 1, 0,
-				  "err: '%s', try 'help %s'", cmd, cmd);
+		if (err) {
+			sprintf(help_msg, "err: '%s', try 'help %s'", cmd, cmd);
+			print_inputwin(help_msg);
+		}
 		return err;
 	}
 
-	mvwprintw(input_win, LINES_INPUT - 1, 0,
-		  "unknow: '%s', try 'help'", cmd);
+	sprintf(help_msg, "unknow: '%s', try 'help'", cmd);
+	print_inputwin(help_msg);
+
 	return -1;
 }
 
@@ -233,15 +243,15 @@ static int raw_run_cmd(char *cmd)
 
 	ret = sent_cmd_alloc_response(cmd, &res);
 	if (ret < 0) {
-		mvwprintw(input_win, LINES_INPUT - 1, 0,
-			  "operation fail: %s", cmd);
+		sprintf(help_msg, "operation fail: %s", cmd);
+		print_inputwin(help_msg);
 		return 0;
 	}
 
 	if (ret == 0)
 		return 0;
 
-	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s", res);
+	print_inputwin(res);
 	free(res);
 
 	return 0;
@@ -278,7 +288,10 @@ static struct mod_info {
 	.name = "('noraw' to exit) raw:",.func = raw_run_cmd,},[SILENT_MODE] {
 .name = "('nosilence' to exit) silent:",.func = silent_run_cmd,},};
 
-static char cmd_buf[256];
+static char *cmd_buf;
+unsigned cmdbuf_index = 0;
+#define CMDBUF_NUM	4
+#define CMDBUF_LEN	64
 
 char *check_cmd(char *cmd_in)
 {
@@ -308,7 +321,7 @@ char *check_cmd(char *cmd_in)
 	return cmd_out;
 }
 
-int inline run_cmd(char *cmd_in)
+int inline just_run_cmd(char *cmd_in)
 {
 	char *cmd;
 
@@ -319,52 +332,129 @@ int inline run_cmd(char *cmd_in)
 		return -1;
 	}
 
-	log_info("%s %s\n", modes[cmd_mod].name, cmd);
-
 	return modes[cmd_mod].func(cmd);
+}
+
+int inline run_cmd(char *cmd_in)
+{
+	log_info("%s %s\n", modes[cmd_mod].name, cmd_in);
+
+	return just_run_cmd(cmd_in);
+}
+
+static char show_buf[CMDBUF_LEN];
+static char show_blank[CMDBUF_LEN];
+
+static void input_refresh_cmdline(char *str, int pos)
+{
+	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s%s",
+		  modes[cmd_mod].name, show_blank);
+	lock_scr();
+	wrefresh(input_win);
+	unlock_scr();
+	memset(show_buf, 0, CMDBUF_LEN);
+	memcpy(show_buf, str, strlen(str));
+	if (show_buf[pos])
+		show_buf[pos] = '*';
+	mvwprintw(input_win, LINES_INPUT - 1, 0, "%s%s",
+		  modes[cmd_mod].name, show_buf);
+	lock_scr();
+	wrefresh(input_win);
+	unlock_scr();
 }
 
 #define ENTER	0x0d
 #define BACKS	0x7f
 #define DELET	0x08
 
+#define ESC	0x1b
+
+#define ARROW_UP	0x1b5b41
+#define ARROW_DOWN	0x1b5b42
+#define ARROW_RIGHT	0x1b5b43
+#define ARROW_LEFT	0x1b5b44
+
 static char *scan_cmd_buf(void)
 {
 	chtype ch;
 	int i;
-	int x, y;
+	unsigned key;
+	char *cur_buf = cmd_buf + cmdbuf_index * CMDBUF_LEN;
 
+	memset(cur_buf, 0, CMDBUF_LEN);
 	i = 0;
+	key = 0;
+
 	do {
 		ch = getchar();
-		if (ch == BACKS || ch == DELET) {
-			if (i == 0)
+
+		if (key) {
+			key = (key << 8) + ch;
+			if (key < 0x1b0000)
 				continue;
-			i--;
-			cmd_buf[i] = 0;
-			getyx(input_win, y, x);
-			wmove(input_win, y, x - 1);
-			wdelch(input_win);
-			lock_scr();
-			wrefresh(input_win);
-			unlock_scr();
+			switch (key) {
+			case ARROW_UP:
+				if (cmdbuf_index > 0)
+					cmdbuf_index--;
+				else
+					cmdbuf_index = CMDBUF_NUM - 1;
+				cur_buf = cmd_buf + cmdbuf_index * CMDBUF_LEN;
+				i = strlen(cur_buf);
+				break;
+			case ARROW_DOWN:
+				if (cmdbuf_index < CMDBUF_NUM - 1)
+					cmdbuf_index++;
+				else
+					cmdbuf_index = 0;
+				cur_buf = cmd_buf + cmdbuf_index * CMDBUF_LEN;
+				i = strlen(cur_buf);
+				break;
+			case ARROW_RIGHT:
+				if (cur_buf[i])
+					i++;
+				break;
+			case ARROW_LEFT:
+				if (i > 0)
+					i--;
+				break;
+			default:
+				log_info("detect unknow:%x\n", key);
+			}
+			input_refresh_cmdline(cur_buf, i);
+			key = 0;
 			continue;
 		}
 
-		cmd_buf[i] = ch;
-		i++;
-		waddch(input_win, ch);
-		lock_scr();
-		wrefresh(input_win);
-		unlock_scr();
-	} while (ch != ENTER);
+		switch (ch) {
+		case BACKS:
+		case DELET:
+			if (i == 0)
+				break;
+			i--;
+			cur_buf[i] = 0;
+			input_refresh_cmdline(cur_buf, i);
+			break;
+		case ESC:
+			key = ESC;
+			break;
+		case ENTER:
+			if (i > 0) {
+				cmdbuf_index++;
+				if (cmdbuf_index >= CMDBUF_NUM)
+					cmdbuf_index = 0;
+				return cur_buf;
+			}
+			return 0;
+		default:
+			cur_buf[i] = ch;
+			i++;
+			input_refresh_cmdline(cur_buf, i);
+		}
+	} while (i < CMDBUF_LEN);
 
-	if (i < 2)
-		return 0;
+	log_info("cmd buf overflow!\n");
 
-	cmd_buf[i - 1] = 0;
-
-	return cmd_buf;
+	return 0;
 }
 
 void cmd_loop(void)
@@ -372,11 +462,7 @@ void cmd_loop(void)
 	char *cmd;
 
 	while (!game_over) {
-		scroll(input_win);
-		mvwprintw(input_win, LINES_INPUT - 1, 0, modes[cmd_mod].name);
-		lock_scr();
-		wrefresh(input_win);
-		unlock_scr();
+		print_inputwin(modes[cmd_mod].name);
 		cmd = scan_cmd_buf();
 		if (!cmd)
 			continue;
@@ -390,6 +476,16 @@ static pthread_mutexattr_t mat_cmd;
 int input_cmd_init(void)
 {
 	int err;
+
+	cmd_buf = malloc(CMDBUF_LEN * CMDBUF_NUM);
+
+	if (!cmd_buf) {
+		log_system_err(__FUNCTION__);
+		goto alloc_cmdbuf;
+	}
+
+	memset(cmd_buf, 0, CMDBUF_LEN * CMDBUF_NUM);
+
 	err = pthread_mutexattr_init(&mat_cmd);
 	if (err) {
 		log_err();
@@ -402,18 +498,26 @@ int input_cmd_init(void)
 		goto init_mutex;
 	}
 
+	memset(show_blank, ' ', CMDBUF_LEN);
+	show_blank[CMDBUF_LEN - 1] = 0;
+
 	return 0;
 
 	pthread_mutex_destroy(&mtx_cmd);
  init_mutex:
 	pthread_mutexattr_destroy(&mat_cmd);
  init_mattr:
+	free(cmd_buf);
+	cmd_buf = 0;
+ alloc_cmdbuf:
 	return err;
 
 }
 
 void input_cmd_exit(void)
 {
+	if (cmd_buf)
+		free(cmd_buf);
 	pthread_mutex_destroy(&mtx_cmd);
 	pthread_mutexattr_destroy(&mat_cmd);
 }

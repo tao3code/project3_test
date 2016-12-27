@@ -28,6 +28,7 @@ void register_cmd(struct input_cmd *cmd);
 void cmd_loop(void);
 char *check_cmd(char *cmd_in);
 int run_cmd(char *cmd);
+int just_run_cmd(char *cmd);
 
 int open_scr(void);
 void close_scr(void);
@@ -35,6 +36,6 @@ void close_scr(void);
 void lock_scr(void);
 void unlock_scr(void);
 
-extern char *air_state;
+void print_inputwin(const char *str);
 
 #endif

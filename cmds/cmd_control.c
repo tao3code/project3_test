@@ -213,7 +213,7 @@ static int run_engine_onece(void)
 	run_count = (AIR_THRESHOLD_H - info->air) * 255 / AIR_THRESHOLD_H;
 	if (run_count < 24)
 		run_count = 24;
-	
+
 	log_info("engine_on(%d)\n", run_count);
 	return engine_on(run_count);
 }
@@ -228,10 +228,10 @@ static void *control_thread_func(void *arg)
 		if (thread_display)
 			refresh_window();
 		if (thread_autoair)
-			if(run_engine_onece())
+			if (run_engine_onece())
 				thread_autoair = 0;
 		if (thread_motion) {
-			if(run_cmd("motion update,id=all,display=1"))
+			if (just_run_cmd("motion update,id=all,display=1"))
 				thread_motion = 0;
 		}
 
