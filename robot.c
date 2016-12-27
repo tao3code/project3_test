@@ -437,11 +437,6 @@ int megnet(struct cylinder_info *cy, int count)
 {
 	char str[16];
 
-	if (!control_state.dev.id) {
-		log_err();
-		return -1;
-	}
-
 	if (!cy->dev.id) {
 		log_err();
 		return -1;
@@ -449,14 +444,20 @@ int megnet(struct cylinder_info *cy, int count)
 
 	if (count > 0 && count < 255) {
 		sprintf(str, ">%c inc %2x;", cy->dev.id, count);
-		send_cmd(str);
+		if (send_cmd(str)) {
+			log_err();
+			return -1;
+		}
 		cy->force = '+';
 		return 0;
 	}
 
 	if (count < 0 && count > -255) {
 		sprintf(str, ">%c dec %2x;", cy->dev.id, abs(count));
-		send_cmd(str);
+		if (send_cmd(str)) {
+			log_err();
+			return -1;
+		}
 		cy->force = '-';
 		return 0;
 	}
@@ -468,11 +469,6 @@ int megnet(struct cylinder_info *cy, int count)
 int set_encoder(struct cylinder_info *cy, int val)
 {
 	char str[16];
-
-	if (!control_state.dev.id) {
-		log_err();
-		return -1;
-	}
 
 	if (val > 65535 || val < 0) {
 		log_err();
@@ -488,6 +484,6 @@ int set_encoder(struct cylinder_info *cy, int val)
 		val = 65535 - val;
 
 	sprintf(str, ">%c set %4x;", cy->dev.id, val);
-	send_cmd(str);
+	send_cmd(str);		/*todo: */
 	return 0;
 }

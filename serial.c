@@ -14,7 +14,7 @@ static pthread_mutex_t mtx_s;
 static pthread_mutexattr_t mat_s;
 
 static char sbuf[256];
- 
+
 int sent_cmd_alloc_response(const char *in, char **out)
 {
 	int ret;
@@ -29,7 +29,7 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	}
 
 	pthread_mutex_lock(&mtx_s);
-	
+
 	ret = tcflush(serial_fd, TCIOFLUSH);
 	if (ret < 0) {
 		log_system_err("flush serial");
@@ -39,7 +39,7 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	ret = write(serial_fd, in, strlen(in));
 	if (ret < 0) {
 		log_system_err("write serial");
-		goto write_serial;	
+		goto write_serial;
 	}
 	tcdrain(serial_fd);
 
@@ -52,6 +52,7 @@ int sent_cmd_alloc_response(const char *in, char **out)
 
 	if (ret <= 0) {
 		log_info("Error response(%d):%s\n", ret, in);
+		ret = -1;
 		goto wait_response;
 	}
 
@@ -73,7 +74,7 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	memset(*out, 0, ret);
 
 	if (sbuf[0] == '\r')
-		memcpy(*out, &sbuf[1], ret -1);
+		memcpy(*out, &sbuf[1], ret - 1);
 	else
 		memcpy(*out, sbuf, ret);
 
@@ -81,22 +82,22 @@ int sent_cmd_alloc_response(const char *in, char **out)
  read_serial:
  wait_response:
  write_serial:
- flush_serial: 
+ flush_serial:
 	pthread_mutex_unlock(&mtx_s);
-	return  ret;
+	return ret;
 }
 
 int send_cmd(const char *cmd)
 {
 	int ret;
-	char *msg_ingro;
+	char *msg;
 
-	ret = sent_cmd_alloc_response(cmd, &msg_ingro);	
+	ret = sent_cmd_alloc_response(cmd, &msg);
 
-	if (ret < 0) 
+	if (ret < 0)
 		return ret;
 
-	free(msg_ingro);
+	free(msg);
 	return 0;
 }
 
@@ -104,7 +105,7 @@ int serial_init(void)
 {
 	int err;
 
-	if (serial_fd >= 0) 
+	if (serial_fd >= 0)
 		return 0;
 
 	serial_fd = open(TTYDEV, O_RDWR | O_NOCTTY | O_NDELAY);
@@ -112,9 +113,9 @@ int serial_init(void)
 		err = log_system_err(TTYDEV);
 		goto open_serial;
 	}
-	log_info("%s is open\n", TTYDEV);	
+	log_info("%s is open\n", TTYDEV);
 	tcgetattr(serial_fd, &options);
-		
+
 	options.c_cflag = 0;
 	options.c_iflag = 0;
 	options.c_oflag = ONOCR | ONLRET;
@@ -143,7 +144,7 @@ int serial_init(void)
  init_mattr:
 	close(serial_fd);
 	serial_fd = -1;
-	log_info("%s closed\n", TTYDEV);	
+	log_info("%s closed\n", TTYDEV);
  open_serial:
 	return err;
 }
@@ -155,11 +156,11 @@ void serial_close(void)
 	if (serial_fd >= 0) {
 		close(serial_fd);
 		log_info("%s closed\n", TTYDEV);
-	}	
+	}
 	serial_fd = -1;
 }
 
 int is_serial_on(void)
 {
-	return (serial_fd >= 0)? 1:0;
+	return (serial_fd >= 0) ? 1 : 0;
 }

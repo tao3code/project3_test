@@ -231,7 +231,7 @@ static void *control_thread_func(void *arg)
 			if (run_engine_onece())
 				thread_autoair = 0;
 		if (thread_motion) {
-			if (just_run_cmd("motion update,id=all,display=1"))
+			if (just_run_cmd("motion update,display=1"))
 				thread_motion = 0;
 		}
 
