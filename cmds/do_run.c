@@ -12,16 +12,15 @@ static int do_run(int argc, char *argv[])
 	int fd;
 	char *buf;
 	char *cmd;
-	char *cmd_run;
 	int p = 0;
 	int ret = 0;
-	
+
 	if (argc != 2) {
 		log_err();
 		return -1;
 	}
 
-	fd = open(argv[1], O_RDONLY); 
+	fd = open(argv[1], O_RDONLY);
 	if (fd < 0) {
 		ret = log_system_err(argv[1]);
 		goto open_file;
@@ -41,22 +40,18 @@ static int do_run(int argc, char *argv[])
 		goto read_file;
 	}
 
-	cmd = buf;	
+	cmd = buf;
 	while (buf[p]) {
 		if (buf[p] != '\n') {
 			p++;
 			continue;
 		}
-		
+
 		buf[p] = 0;
 
-		cmd_run = check_cmd(cmd);
-		if (cmd_run) {
-			ret = run_cmd(cmd);
-			if (ret)
-				break;
-		}
-
+		ret = run_cmd(cmd);
+		if (ret)
+			break;
 		p++;
 		cmd = buf + p;
 	}
@@ -65,7 +60,7 @@ static int do_run(int argc, char *argv[])
 	free(buf);
  alloc_mem:
 	close(fd);
- open_file:	
+ open_file:
 	return ret;
 }
 

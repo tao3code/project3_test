@@ -38,4 +38,6 @@ void unlock_scr(void);
 
 void print_inputwin(const char *str);
 
+#define CMDBUF_LEN      64
+
 #endif

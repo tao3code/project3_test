@@ -1,11 +1,16 @@
 #include <serial.h>
 #include <log_project3.h>
+#include <socket_project3.h>
 #include <input_cmd.h>
 #include <init.h>
 
 int main(int argc, const char *argv[])
 {
 	int err;
+
+	err = socket_init();
+	if (err)
+		goto socket_err;
 
 	err = log_open();
 	if (err)
@@ -39,5 +44,7 @@ int main(int argc, const char *argv[])
  scr_open_err:
 	log_close();
  log_open_err:
+	socket_close();
+ socket_err:
 	return err;
 }
