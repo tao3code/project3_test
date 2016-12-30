@@ -1,40 +1,24 @@
-deamon_src := $(shell find ./ -path "./client" -prune -o -print | grep "\.c")
-client_src := $(shell find ./client/ -name "*.c")
-src := $(deamon_src) $(client_src)
+ROOT_DIR := $(shell pwd)
 
-deamon_objs := $(patsubst %.c,%.o,$(deamon_src))
-client_objs := $(patsubst %.c,%.o,$(client_src))
-objs := $(patsubst %.c,%.o,$(src))
+CFLAGS := -g -Wall -Werror -I$(ROOT_DIR)/include/
 
-header := $(shell find -name "*.h")
-CC := gcc
-LD := ld
-LDFLAGS := -lpthread -lncurses
-CFLAGS := -Iinclude -Wall -Werror -g
+export ROOT_DIR 
+export CFLAGS
+export CC
+export LD
 
-all: pj3d pj3c
+all: project3_daemon project3_client
 
-pj3d: $(deamon_objs) link.lsd 
-	@$(LD) $(deamon_objs) -r -Tlink.lsd -o build-all.o  
-	@$(CC) build-all.o $(LDFLAGS) -o $@ 
-	@echo $@
-
-pj3c: $(client_objs)
-	@$(CC) $(client_objs) -o $@ 
-	@echo $@
-
-%.d: %.c
-	@$(CC) -M $(CFLAGS) $< >$@
-%.o: %.c
-	@$(CC) $(CFLAGS) -c $< -o $@
-	@echo $@
+project3_daemon:
+	@make -C daemon
+	@$(LD) -r daemon/build_in.o -T$(ROOT_DIR)/script/link.lsd -o pj3d.o
+	@$(CC) pj3d.o -lpthread -lncurses -o pj3d
+	@echo generate pj3d
+project3_client:
+	@make -C client
+	@$(CC) client/build_in.o -o pj3cmd
+	@echo generate pj3cmd	
 clean:
-	@rm -f pj3d pj3c $(objs) $(src:.c=.d)
-	@rm -f $(src:.c=.c~) $(header:.h=.h~)
-	@rm -f build-all.o log_project3.txt
-report:
-	@wc -l $(src) $(header) Makefile
-test:
-	echo $(client_objs)
-
--include $(src:.c=.d)
+	@make -C daemon/ clean
+	@make -C client/ clean
+	@rm -f pj3d.o pj3d pj3cmd log_project3.txt include/*.h~
