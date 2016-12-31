@@ -3,7 +3,6 @@
 
 #include <curses.h>
 
-extern WINDOW *input_win;
 extern WINDOW *ctrl_win;
 extern WINDOW *motion_win;
 
@@ -36,8 +35,6 @@ void close_scr(void);
 void lock_scr(void);
 void unlock_scr(void);
 
-void print_inputwin(const char *str);
-
-#define CMDBUF_LEN      64
+#define CMDBUF_LEN     256
 
 #endif
