@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <init.h>
 #include <log_project3.h>
 #include <input_cmd.h>
@@ -10,23 +11,6 @@
 #include <serial.h>
 
 static struct interface_info *info;
-
-static int set_detect = 0;
-static int set_m12 = 0;
-static int set_serial = 0;
-
-static struct func_arg set_args[] = {
-	{.name = "serial",
-	 .var = &set_serial,
-	 .type = "%d"},
-	{.name = "detect",
-	 .var = &set_detect,
-	 .type = "%d",},
-	{.name = "m12",
-	 .var = &set_m12,
-	 .type = "%d"},
-	{0},
-};
 
 static int detect_interface_board(void)
 {
@@ -38,69 +22,69 @@ static int detect_interface_board(void)
 	return 0;
 }
 
-static int do_set(struct func_arg *args)
-{
-	if (set_serial) {
-		if (serial_init())
-			return -1;
-	} else {
-		log_info("Serial close, skip...\n");
-		serial_close();
-		return 0;
-	}
-
-	if (set_detect) {
-		set_detect = 0;
-		if (detect_interface_board())
-			return -1;
-	}
-
-	meg12v_on(set_m12);
-
-	return 0;
-}
-
-static int update_vol = 1;
-static int update_air = 1;
 static int update_gyr = 0;
-static int update_m12 = 1;
-static int update_eng = 1;
+static int update_m12 = 0;
+static char update_serial[MAX_VAL_LEN] = "/dev/ttyUSB0";
 
 static struct func_arg update_args[] = {
-	{.name = "vol",
-	 .var = &update_vol,
-	 .type = "%d",},
-	{.name = "air",
-	 .var = &update_air,
-	 .type = "%d",},
 	{.name = "gyr",
 	 .var = &update_gyr,
 	 .type = "%d",},
 	{.name = "m12",
 	 .var = &update_m12,
 	 .type = "%d",},
-	{.name = "engine",
-	 .var = &update_eng,
-	 .type = "%d",},
+	{.name = "serial",
+	 .var = update_serial,
+	 .type = "%s",},
 	{0},
 };
 
+static int serial_err = -1;
+static int dev_err = -1;
+
 static int do_update(struct func_arg *args)
 {
-	if (update_gyr) {
-		update_gyr = 0;
-		update_gyroscope();
+	struct stat s;
+	int ret = 0;
+
+	ret = stat(update_serial, &s);
+	if (ret) {
+		if (!serial_err) {
+			log_info("%s not exist!\n", update_serial);
+			serial_close();
+			serial_err = ret;
+		}
+		return -1;
 	}
 
-	if (update_vol)
-		update_voltage();
-	if (update_air)
-		update_presure();
-	if (update_m12)
-		update_meg12v();
-	if (update_eng)
-		update_engine();
-	return 0;
+	if (serial_err) {
+		serial_err = serial_init(update_serial);
+		if (serial_err)
+			return -1;
+		dev_err = detect_interface_board();
+		just_run_cmd("motion set,detect=1");
+		just_run_cmd("motion update,mask=0");
+	}
+
+	if (dev_err)
+		return -1;
+
+	if (update_gyr) {
+		ret |= update_gyroscope();
+		update_gyr = 0;
+	}
+
+	if (update_m12) {
+		ret |= meg12v_on(update_m12);
+		update_m12 = 0;
+	}
+
+	ret |= update_presure();
+	ret |= update_voltage();
+	ret |= update_meg12v();
+	ret |= update_engine();
+
+	return ret;
 }
 
 static pthread_t control_thread = 0;
@@ -195,9 +179,8 @@ static int run_engine_onece(void)
 	hvol_count = 0;
 
 	can_run &= thread_autoupdate;
-	can_run &= update_vol;
-	can_run &= update_air;
-	can_run &= update_eng;
+	can_run &= !serial_err;
+	can_run &= !dev_err;
 
 	if (!can_run) {
 		log_info("%s, not ready to run!\n", __FUNCTION__);
@@ -220,20 +203,31 @@ static int run_engine_onece(void)
 
 static void *control_thread_func(void *arg)
 {
+	int ret;
+
 	log_info("%s start\n", __FUNCTION__);
 
 	while (!strcmp(thread_state, "on")) {
+		ret = 0;
 		if (thread_autoupdate)
-			do_update(update_args);
+			ret = do_update(update_args);
 		if (thread_display)
 			refresh_window();
 		if (thread_autoair)
-			if (run_engine_onece())
+			if (run_engine_onece()) {
+				ret = -1;
 				thread_autoair = 0;
-		if (thread_motion) {
-			if (just_run_cmd("motion update,display=1"))
+			}
+		if (thread_motion)
+			if (just_run_cmd("motion update,display=1")) {
+				ret = -1;
 				thread_motion = 0;
-		}
+			}
+
+		if (ret)
+			thread_step = 1000000;
+		else
+			thread_step = 100000;
 
 		usleep(thread_step);
 	}
@@ -294,9 +288,6 @@ static struct cmd_func control_funcs[] = {
 	{.name = "update",
 	 .func = do_update,
 	 .args = update_args},
-	{.name = "set",
-	 .func = do_set,
-	 .args = set_args},
 	{0},
 };
 
@@ -328,6 +319,7 @@ static int reg_cmd(void)
 {
 	info = get_interface_info();
 	register_cmd(&cmd);
+	do_thread(thread_args);
 	return 0;
 }
 

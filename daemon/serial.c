@@ -101,19 +101,19 @@ int send_cmd(const char *cmd)
 	return 0;
 }
 
-int serial_init(void)
+int serial_init(char *path)
 {
 	int err;
 
 	if (serial_fd >= 0)
 		return 0;
 
-	serial_fd = open(TTYDEV, O_RDWR | O_NOCTTY | O_NDELAY);
+	serial_fd = open(path, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (serial_fd < 0) {
-		err = log_system_err(TTYDEV);
+		err = log_system_err(path);
 		goto open_serial;
 	}
-	log_info("%s is open\n", TTYDEV);
+	log_info("%s is open\n", path);
 	tcgetattr(serial_fd, &options);
 
 	options.c_cflag = 0;
@@ -144,7 +144,7 @@ int serial_init(void)
  init_mattr:
 	close(serial_fd);
 	serial_fd = -1;
-	log_info("%s closed\n", TTYDEV);
+	log_info("%s closed\n", path);
  open_serial:
 	return err;
 }
@@ -155,7 +155,7 @@ void serial_close(void)
 	pthread_mutexattr_destroy(&mat_s);
 	if (serial_fd >= 0) {
 		close(serial_fd);
-		log_info("%s closed\n", TTYDEV);
+		log_info("serial port closed\n");
 	}
 	serial_fd = -1;
 }
