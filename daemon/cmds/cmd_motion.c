@@ -35,7 +35,7 @@ static struct func_arg set_args[] = {
 static int enc_val(int id, char *enc)
 {
 	if (!strcmp(set_enc, "max"))
-		return info[id].mea.count + ENCODER_OFFSET;
+		return info[id].mea.c + ENCODER_OFFSET;
 	if (!strcmp(set_enc, "min"))
 		return ENCODER_OFFSET;
 	return atoi(enc);

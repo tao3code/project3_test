@@ -1,6 +1,5 @@
 #include <string.h>
 #include <pthread.h>
-#include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <init.h>
@@ -11,6 +10,9 @@
 #include <serial.h>
 
 static struct interface_info *info;
+
+time_t uts;
+static struct tm *sys_time;
 
 static int detect_interface_board(void)
 {
@@ -23,7 +25,7 @@ static int detect_interface_board(void)
 }
 
 static int update_gyr = 0;
-static int update_m12 = 0;
+static int update_m12 = 1;
 static char update_serial[MAX_VAL_LEN] = "/dev/ttyUSB0";
 
 static struct func_arg update_args[] = {
@@ -46,6 +48,9 @@ static int do_update(struct func_arg *args)
 {
 	struct stat s;
 	int ret = 0;
+
+	uts = time(NULL);
+	sys_time = localtime(&uts);
 
 	ret = stat(update_serial, &s);
 	if (ret) {
@@ -91,6 +96,7 @@ static pthread_t control_thread = 0;
 
 static int thread_step = 1000000;
 static int thread_autoair = 0;
+static unsigned thread_ah = AIR_THRESHOLD_H;
 static int thread_autoupdate = 1;
 static int thread_display = 1;
 static int thread_motion = 1;
@@ -99,6 +105,13 @@ static int check_step(void *var)
 {
 	if (thread_step < 1000 || thread_step > 1000000)
 		return -1;
+	return 0;
+}
+
+static int check_ah(void *var)
+{
+	if (thread_ah > 100)
+		thread_ah = AIR_THRESHOLD_H;
 	return 0;
 }
 
@@ -115,14 +128,9 @@ static int check_state(void *var)
 
 static void refresh_window(void)
 {
-	time_t uts;
-	struct tm *t;
-
-	uts = time(NULL);
-	t = localtime(&uts);
-
 	werase(ctrl_win);
-	wprintw(ctrl_win, "%d:%d:%d\n", t->tm_hour, t->tm_min, t->tm_sec);
+	wprintw(ctrl_win, "%d:%d:%d\n", sys_time->tm_hour,
+		sys_time->tm_min, sys_time->tm_sec);
 
 	if (!info->dev.id) {
 		wprintw(ctrl_win, "Interface board does not exise!\n");
@@ -145,8 +153,10 @@ static void refresh_window(void)
 	unlock_scr();
 }
 
-static int hvol_count = 0;
-static int lvol_count = 0;
+#define MAX_TIME	0x7fffffff
+static time_t hvol_expire = MAX_TIME;
+static time_t lvol_expire = MAX_TIME;
+#define VOL_EXPIRE	5
 
 static int run_engine_onece(void)
 {
@@ -154,29 +164,29 @@ static int run_engine_onece(void)
 	int need_run = 1;
 	int run_count;
 
-	if (lvol_count > 10) {
+	if (uts > lvol_expire) {
 		log_info("voltage always too low!\n");
-		lvol_count = 0;
 		return -1;
 	}
 
-	if (hvol_count > 10) {
+	if (uts > hvol_expire) {
 		log_info("voltage always too high!\n");
-		hvol_count = 0;
 		return -1;
 	}
 
 	if (info->vol < VOLTAGE_LOW) {
-		lvol_count++;
+		if (lvol_expire == MAX_TIME)
+			lvol_expire = uts + VOL_EXPIRE;
 		return 0;
 	}
-	lvol_count = 0;
+	lvol_expire = MAX_TIME;
 
 	if (info->vol > VOLTAGE_OVE) {
-		hvol_count++;
+		if (hvol_expire == MAX_TIME)
+			hvol_expire = uts + VOL_EXPIRE;
 		return 0;
 	}
-	hvol_count = 0;
+	hvol_expire = MAX_TIME;
 
 	can_run &= thread_autoupdate;
 	can_run &= !serial_err;
@@ -187,13 +197,13 @@ static int run_engine_onece(void)
 		return -1;
 	}
 
-	need_run &= info->air < AIR_THRESHOLD_H;
+	need_run &= info->air < thread_ah;
 	need_run &= !info->engine;
 
 	if (!need_run)
 		return 0;
 
-	run_count = (AIR_THRESHOLD_H - info->air) * 255 / AIR_THRESHOLD_H;
+	run_count = (thread_ah - info->air) * 255 / thread_ah;
 	if (run_count < 24)
 		run_count = 24;
 
@@ -249,6 +259,10 @@ static struct func_arg thread_args[] = {
 	{.name = "autoair",
 	 .var = &thread_autoair,
 	 .type = "%d"},
+	{.name = "ah",
+	 .var = &thread_ah,
+	 .type = "%u",
+	 .check = check_ah},
 	{.name = "autoupdate",
 	 .var = &thread_autoupdate,
 	 .type = "%d"},

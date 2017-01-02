@@ -2,9 +2,11 @@
 #define INPUT_CMD_H
 
 #include <curses.h>
-
+#include <time.h>
 extern WINDOW *ctrl_win;
 extern WINDOW *motion_win;
+
+extern time_t uts;
 
 #define LINES_INPUT     8
 #define LINE_CTRL       9

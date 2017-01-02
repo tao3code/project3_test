@@ -4,7 +4,6 @@
 #include <pthread.h>
 #include <termios.h>
 #include <string.h>
-#include <sys/time.h>
 #include <serial.h>
 #include <log_project3.h>
 

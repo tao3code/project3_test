@@ -13,11 +13,11 @@ struct cylinder_info {
 		unsigned short area;
 	} fix;
 	const struct measured_info {
-		unsigned short count;
-		unsigned char p_air;
-		unsigned char n_air;
-		unsigned char p_vol;
-		unsigned char n_vol;
+		unsigned short c;
+		unsigned char pa;
+		unsigned char na;
+		short int pv;
+		short int nv;
 	} mea;
 	char force;
 	char inactive;
