@@ -10,7 +10,7 @@ struct cylinder_info {
 	struct device dev;
 	const struct fix_info {
 		unsigned short range;
-		unsigned short area;
+		short int area;
 	} fix;
 	const struct measured_info {
 		unsigned short c;
@@ -22,6 +22,8 @@ struct cylinder_info {
 	char force;
 	char inactive;
 	const char type;
+	unsigned long meg_expire;
+	int meg_dir;
 	union {
 		struct cy_var {
 			volatile unsigned char port;

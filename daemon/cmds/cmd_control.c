@@ -11,8 +11,8 @@
 
 static struct interface_info *info;
 
-time_t uts;
-static struct tm *sys_time;
+unsigned long sys_ms;
+static struct timeval sys_tv;
 
 static int detect_interface_board(void)
 {
@@ -48,9 +48,6 @@ static int do_update(struct func_arg *args)
 {
 	struct stat s;
 	int ret = 0;
-
-	uts = time(NULL);
-	sys_time = localtime(&uts);
 
 	ret = stat(update_serial, &s);
 	if (ret) {
@@ -128,9 +125,13 @@ static int check_state(void *var)
 
 static void refresh_window(void)
 {
+
+	struct tm *sys_time;
+
+	sys_time = localtime(&sys_tv.tv_sec);
 	werase(ctrl_win);
-	wprintw(ctrl_win, "%d:%d:%d\n", sys_time->tm_hour,
-		sys_time->tm_min, sys_time->tm_sec);
+	wprintw(ctrl_win, "%d:%d:%d  %lu\n", sys_time->tm_hour,
+		sys_time->tm_min, sys_time->tm_sec, sys_ms);
 
 	if (!info->dev.id) {
 		wprintw(ctrl_win, "Interface board does not exise!\n");
@@ -153,10 +154,9 @@ static void refresh_window(void)
 	unlock_scr();
 }
 
-#define MAX_TIME	0x7fffffff
-static time_t hvol_expire = MAX_TIME;
-static time_t lvol_expire = MAX_TIME;
-#define VOL_EXPIRE	5
+static unsigned long hvol_expire = ~0x0;
+static unsigned long lvol_expire = ~0x0;
+#define VOL_EXPIRE	5000
 
 static int run_engine_onece(void)
 {
@@ -164,29 +164,31 @@ static int run_engine_onece(void)
 	int need_run = 1;
 	int run_count;
 
-	if (uts > lvol_expire) {
+	if (sys_ms > lvol_expire) {
 		log_info("voltage always too low!\n");
+		lvol_expire = ~0x0;
 		return -1;
 	}
 
-	if (uts > hvol_expire) {
+	if (sys_ms > hvol_expire) {
 		log_info("voltage always too high!\n");
+		hvol_expire = ~0x0;
 		return -1;
 	}
 
 	if (info->vol < VOLTAGE_LOW) {
-		if (lvol_expire == MAX_TIME)
-			lvol_expire = uts + VOL_EXPIRE;
+		if (lvol_expire == ~0x0)
+			lvol_expire = sys_ms + VOL_EXPIRE;
 		return 0;
 	}
-	lvol_expire = MAX_TIME;
+	lvol_expire = ~0x0;
 
 	if (info->vol > VOLTAGE_OVE) {
-		if (hvol_expire == MAX_TIME)
-			hvol_expire = uts + VOL_EXPIRE;
+		if (hvol_expire == ~0x0)
+			hvol_expire = sys_ms + VOL_EXPIRE;
 		return 0;
 	}
-	hvol_expire = MAX_TIME;
+	hvol_expire = ~0x0;
 
 	can_run &= thread_autoupdate;
 	can_run &= !serial_err;
@@ -218,6 +220,8 @@ static void *control_thread_func(void *arg)
 	log_info("%s start\n", __FUNCTION__);
 
 	while (!strcmp(thread_state, "on")) {
+		gettimeofday(&sys_tv, NULL);
+		sys_ms = sys_tv.tv_sec * 1000 + sys_tv.tv_usec / 1000;
 		ret = 0;
 		if (thread_autoupdate)
 			ret = do_update(update_args);
@@ -237,7 +241,7 @@ static void *control_thread_func(void *arg)
 		if (ret)
 			thread_step = 1000000;
 		else
-			thread_step = 100000;
+			thread_step = 1000;
 
 		usleep(thread_step);
 	}

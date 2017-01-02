@@ -3,9 +3,9 @@
 #include <string.h>
 #include <serial.h>
 #include <robot.h>
-#include <stdio.h>
 #include <import/firmware.h>
 #include <log_project3.h>
+#include <input_cmd.h>
 
 #define TYPE_P	0
 #define TYPE_N	1
@@ -13,51 +13,51 @@
 static struct cylinder_info motion_state[] = {
 	[0] {.dev = {.ack = MESSAGE_1},
 	     .type = TYPE_N,
-	     .fix = {25, 100},
+	     .fix = {25, 1},
 	     .mea = {.c = 237,.pa = 60,.na = 70,.pv = 110,.nv = -100}},
 	[1] {.dev = {.ack = MESSAGE_7},
 	     .type = TYPE_P,
-	     .fix = {25, 100},
+	     .fix = {25, 1},
 	     .mea = {.c = 236,.pa = 60,.na = 70,.pv = 110,.nv = -100}},
 	[2] {.dev = {.ack = MESSAGE_2},
 	     .type = TYPE_P,
-	     .fix = {25, 100},
+	     .fix = {25, 1},
 	     .mea = {.c = 240,.pa = 60,.na = 70,.pv = 50,.nv = -50}},
 	[3] {.dev = {.ack = MESSAGE_8},
 	     .type = TYPE_N,
-	     .fix = {25, 100},
+	     .fix = {25, 1},
 	     .mea = {.c = 243,.pa = 60,.na = 70,.pv = 50,.nv = -50}},
 	[4] {.dev = {.ack = MESSAGE_3},
 	     .type = TYPE_N,
-	     .fix = {140, 400},
+	     .fix = {140, 4},
 	     .mea = {.c = 1400,.pa = 60,.na = 60,.pv = 240,.nv = -140}},
 	[5] {.dev = {.ack = MESSAGE_9},
 	     .type = TYPE_P,
-	     .fix = {140, 400},
+	     .fix = {140, 4},
 	     .mea = {.c = 1427,.pa = 60,.na = 60,.pv = 240,.nv = -140}},
 	[6] {.dev = {.ack = MESSAGE_4},
 	     .type = TYPE_N,
-	     .fix = {125, 400},
+	     .fix = {125, 4},
 	     .mea = {.c = 1180,.pa = 60,.na = 70,.pv = 200,.nv = -110}},
 	[7] {.dev = {.ack = MESSAGE_A},
 	     .type = TYPE_P,
-	     .fix = {125, 400},
+	     .fix = {125, 4},
 	     .mea = {.c = 1150,.pa = 60,.na = 70,.pv = 200,.nv = -110}},
 	[8] {.dev = {.ack = MESSAGE_5},
 	     .type = TYPE_P,
-	     .fix = {50, 100},
+	     .fix = {50, 1},
 	     .mea = {.c = 500,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 	[9] {.dev = {.ack = MESSAGE_B},
 	     .type = TYPE_N,
-	     .fix = {50, 100},
+	     .fix = {50, 1},
 	     .mea = {.c = 472,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 	[10] {.dev = {.ack = MESSAGE_6},
 	      .type = TYPE_N,
-	      .fix = {50, 100},
+	      .fix = {50, 1},
 	      .mea = {.c = 494,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 	[11] {.dev = {.ack = MESSAGE_C},
 	      .type = TYPE_P,
-	      .fix = {50, 100},
+	      .fix = {50, 1},
 	      .mea = {.c = 436,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 };
 
@@ -339,6 +339,8 @@ int update_engine(void)
 	return 0;
 }
 
+#define MEG_EXPIRE	500
+
 int update_cylinder_state(struct cylinder_info *cy)
 {
 	char cmd[16];
@@ -375,6 +377,20 @@ int update_cylinder_state(struct cylinder_info *cy)
 	}
 
 	cy->var.port = res[5];
+
+	if (sys_ms > cy->meg_expire) {
+		cy->meg_expire = ~0x0;
+		cy->meg_dir = 0;
+	}
+
+	if (cy->var.port & 0x4) {
+		cy->meg_expire = sys_ms + MEG_EXPIRE;
+		cy->meg_dir = -1;
+	}
+	if (cy->var.port & 0x8) {
+		cy->meg_expire = sys_ms + MEG_EXPIRE;
+		cy->meg_dir = 1;
+	}
 
 	return 0;
 }

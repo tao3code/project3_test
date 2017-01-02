@@ -3,15 +3,17 @@
 
 #include <curses.h>
 #include <time.h>
+#include <sys/time.h>
 extern WINDOW *ctrl_win;
 extern WINDOW *motion_win;
 
-extern time_t uts;
+extern unsigned long sys_ms;
+extern volatile int air_loading;
 
 #define LINES_INPUT     8
 #define LINE_CTRL       9
 #define ROW_CTRL        24
-#define LINE_MOTION     6
+#define LINE_MOTION	10
 #define ROW_MOTION      48
 
 struct input_cmd {

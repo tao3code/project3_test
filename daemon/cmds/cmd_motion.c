@@ -11,6 +11,8 @@ struct interface_info *if_info;
 static struct cylinder_info *info;
 static int count;
 
+volatile int air_loading = 0;
+
 static int set_detect = 0;
 static int set_id = -1;
 static int set_meg = 0;
@@ -117,7 +119,7 @@ static void refresh_window(void)
 		if (!info[i].dev.id)
 			wprintw(motion_win, "*[%d]: NULL", i);
 		else
-			wprintw(motion_win, "%c[%d]: %hu,%hd,%x",
+			wprintw(motion_win, "%c[%d]: %6hu,%hd,%x",
 				masked, i, info[i].var.len, info[i].var.speed,
 				info[i].var.port);
 
@@ -126,6 +128,7 @@ static void refresh_window(void)
 		else
 			waddch(motion_win, '\t');
 	}
+	wprintw(motion_win, "\nloadng: %d\n", air_loading);
 	lock_scr();
 	wrefresh(motion_win);
 	unlock_scr();
@@ -135,6 +138,7 @@ static int do_update(struct func_arg *args)
 {
 	int i;
 
+	air_loading = 0;
 	for (i = 0; i < count; i++) {
 		if ((1 << i) & update_mask)
 			continue;
@@ -142,6 +146,8 @@ static int do_update(struct func_arg *args)
 			continue;
 		if (update_cylinder_state(&info[i]))
 			update_mask |= 1 << i;
+		air_loading +=
+		    info[i].var.speed * info[i].meg_dir * info[i].fix.area;
 	}
 
 	if (update_display) {
