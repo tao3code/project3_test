@@ -92,7 +92,7 @@ static int do_update(struct func_arg *args)
 static pthread_t control_thread = 0;
 
 static int thread_step = 1000000;
-static int thread_autoair = 0;
+static int thread_autoair = 1;
 static unsigned thread_ah = AIR_THRESHOLD_H;
 static int thread_autoupdate = 1;
 static int thread_display = 1;
@@ -163,6 +163,9 @@ static int run_engine_onece(void)
 	int can_run = 1;
 	int need_run = 1;
 	int run_count;
+
+	if (megs_on)
+		return 0;
 
 	if (sys_ms > lvol_expire) {
 		log_info("voltage always too low!\n");

@@ -12,6 +12,7 @@ static struct cylinder_info *info;
 static int count;
 
 volatile int air_loading = 0;
+volatile int megs_on = 0;
 
 static int set_detect = 0;
 static int set_id = -1;
@@ -43,6 +44,66 @@ static int enc_val(int id, char *enc)
 	return atoi(enc);
 }
 
+#define AIR_EXPIER		2000
+#define VOL_EXPIER		2000
+#define LOAD_EXPIER		2000
+
+#define MAX_LOADING		800
+
+static unsigned long air_expire = ~0x0;
+static unsigned long vol_expire = ~0x0;
+static unsigned long load_expire = ~0x0;
+
+static int set_meg_once(struct cylinder_info *cy, int val)
+{
+	unsigned char air;
+
+	if (!val)
+		return 0;
+
+	air = (val > 0) ? cy->mea.pa : cy->mea.na;
+
+	if (!if_info->m12v) {
+		log_info("%s, megnet power is not on, stop!\n", __FUNCTION__);
+		goto err_meg;
+	}
+
+	if (if_info->air < air)
+		air_expire = sys_ms + AIR_EXPIER;
+	if (if_info->vol < VOLTAGE_LOW)
+		vol_expire = sys_ms + VOL_EXPIER;
+	if (air_loading > MAX_LOADING)
+		load_expire = sys_ms + LOAD_EXPIER;
+
+	while (if_info->air < air || if_info->vol < VOLTAGE_LOW
+	       || air_loading > MAX_LOADING) {
+		if (sys_ms > air_expire) {
+			log_info("%s, wait air error, stop!\n", __FUNCTION__);
+			goto err_meg;
+		}
+		if (sys_ms > vol_expire) {
+			log_info("%s, wait voltage error, stop!\n",
+				 __FUNCTION__);
+			goto err_meg;
+		}
+		if (sys_ms > load_expire) {
+			log_info("%s, wait engine error, stop!\n",
+				 __FUNCTION__);
+			goto err_meg;
+		}
+		usleep(200);
+	}
+	air_expire = ~0x0;
+	vol_expire = ~0x0;
+	load_expire = ~0x0;
+	return megnet(cy, val);
+ err_meg:
+	air_expire = ~0x0;
+	vol_expire = ~0x0;
+	load_expire = ~0x0;
+	return -1;
+}
+
 static int do_set(struct func_arg *args)
 {
 	int ret = 0;
@@ -71,21 +132,8 @@ static int do_set(struct func_arg *args)
 			goto set_end;
 	}
 
-	if (set_meg != 0) {
-		if (!if_info->m12v) {
-			log_info("%s, megnet power is not on, stop!\n",
-				 __FUNCTION__);
-			ret = -1;
-			goto set_end;
-		}
-		if (run_cmd("wait air 2")) {
-			log_info("%s, pressure is low, stop!\n", __FUNCTION__);
-			ret = -1;
-			goto set_end;
-		}
-
-		ret = megnet(&info[set_id], set_meg);
-	}
+	if (set_meg != 0)
+		ret = set_meg_once(&info[set_id], set_meg);
 
  set_end:
 	set_meg = 0;
@@ -128,7 +176,7 @@ static void refresh_window(void)
 		else
 			waddch(motion_win, '\t');
 	}
-	wprintw(motion_win, "\nloadng: %d\n", air_loading);
+	wprintw(motion_win, "\nloadng: %d  megs: %d\n", air_loading, megs_on);
 	lock_scr();
 	wrefresh(motion_win);
 	unlock_scr();
@@ -139,6 +187,7 @@ static int do_update(struct func_arg *args)
 	int i;
 
 	air_loading = 0;
+	megs_on = 0;
 	for (i = 0; i < count; i++) {
 		if ((1 << i) & update_mask)
 			continue;
@@ -148,6 +197,8 @@ static int do_update(struct func_arg *args)
 			update_mask |= 1 << i;
 		air_loading +=
 		    info[i].var.speed * info[i].meg_dir * info[i].fix.area;
+		if (info[i].var.port & (0x8 | 0x4))
+			megs_on++;
 	}
 
 	if (update_display) {
