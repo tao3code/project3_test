@@ -9,7 +9,7 @@ extern WINDOW *motion_win;
 
 extern unsigned long sys_ms;
 extern volatile int air_loading;
-extern volatile int megs_on;
+extern volatile unsigned megs_on;
 
 #define LINES_INPUT     8
 #define LINE_CTRL       9

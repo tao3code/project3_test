@@ -164,9 +164,6 @@ static int run_engine_onece(void)
 	int need_run = 1;
 	int run_count;
 
-	if (megs_on)
-		return 0;
-
 	if (sys_ms > lvol_expire) {
 		log_info("voltage always too low!\n");
 		lvol_expire = ~0x0;
@@ -212,8 +209,17 @@ static int run_engine_onece(void)
 	if (run_count < 24)
 		run_count = 24;
 
+	if (megs_on)
+		return 0;
+	info->engine = 1;
+
 	log_info("engine_on(%d)\n", run_count);
-	return engine_on(run_count);
+	if (engine_on(run_count)) {
+		info->engine = 0;
+		return -1;
+	}
+
+	return 0;
 }
 
 static void *control_thread_func(void *arg)
