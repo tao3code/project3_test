@@ -378,17 +378,17 @@ int update_cylinder_state(struct cylinder_info *cy)
 
 	cy->var.port = res[5];
 
-	if (sys_ms > cy->meg_expire) {
-		cy->meg_expire = ~0x0;
+	if (sys_ms > cy->meg_delay) {
+		cy->meg_delay = ~0x0;
 		cy->meg_dir = 0;
 	}
 
 	if (cy->var.port & 0x4) {
-		cy->meg_expire = sys_ms + MEG_EXPIRE;
+		cy->meg_delay = sys_ms + MEG_EXPIRE;
 		cy->meg_dir = -1;
 	}
 	if (cy->var.port & 0x8) {
-		cy->meg_expire = sys_ms + MEG_EXPIRE;
+		cy->meg_delay = sys_ms + MEG_EXPIRE;
 		cy->meg_dir = 1;
 	}
 

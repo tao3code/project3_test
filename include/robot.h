@@ -22,7 +22,8 @@ struct cylinder_info {
 	char force;
 	char inactive;
 	const char type;
-	unsigned long meg_expire;
+	unsigned long meg_delay;
+	unsigned long start_ms;
 	int meg_dir;
 	union {
 		struct cy_var {
