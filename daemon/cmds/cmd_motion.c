@@ -143,7 +143,7 @@ static int set_meg_once(int id, int val)
 			goto err_meg;
 		}
 
-	       	if (air_loading > MAX_LOADING)
+	       	if (air_loading < MAX_LOADING)
 			break;
 		if (sys_ms > load_expire) {
 			log_info("%s, wait engine error, stop!\n",
@@ -157,6 +157,19 @@ static int set_meg_once(int id, int val)
 	}
 
 	load_expire = ~0x0;
+
+	ret = update_presure();
+	if (ret) {
+		log_info("%s, update presure err, stop!\n",
+			 __FUNCTION__);
+		goto err_meg;
+	}
+	ret = update_voltage();
+	if (ret) {
+		log_info("%s, update voltage err, stop!\n",
+			 __FUNCTION__);
+		goto err_meg;
+	}
 
 	if (if_info->air < air && air)
 		air_expire = sys_ms + AIR_EXPIER;
