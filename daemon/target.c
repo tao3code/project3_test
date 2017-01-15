@@ -34,9 +34,16 @@ struct target *find_target(char *name)
 int alloc_target(char *name)
 {
 	struct target *t;
-	struct cylinder_info *info;
+	int name_len;
 
 	if (!name) {
+		log_err();
+		return -1;
+	}
+
+	name_len = strlen(name);
+
+	if (name_len > sizeof(t->name)) {
 		log_err();
 		return -1;
 	}
@@ -54,21 +61,7 @@ int alloc_target(char *name)
 	}
 
 	memset(t, 0, sizeof(struct target));
-	t->name = malloc(strlen(name) + 1);
-	if (!t->name) {
-		log_system_err(__FUNCTION__);
-		goto alloc_name;
-	}
-	memset(t->name, 0, strlen(name) + 1);
-	memcpy(t->name, name, strlen(name));
-
-	info = get_motion_info(&t->num);
-	t->info = malloc(sizeof(struct cylinder_info) * t->num);
-	if (!t->info) {
-		log_system_err(__FUNCTION__);
-		goto alloc_info;
-	}
-	memcpy(t->info, info, sizeof(struct cylinder_info) * t->num);
+	memcpy(t->name, name, name_len);
 
 	pthread_mutex_lock(&mtx_head);
 	t->next = target_head;
@@ -80,10 +73,6 @@ int alloc_target(char *name)
 
 	return 0;
 	
-	free(t->info);
- alloc_info:	
-	free(t->name);
- alloc_name:
 	free(t);
  alloc_mem:
 	return -1;
@@ -112,8 +101,6 @@ int free_target(char *name)
 	else
 		target_head = t->next;
 	pthread_mutex_unlock(&mtx_head);
-	free(t->name);
-	free(t->info);
 	free(t);
 	return 0;
 }
@@ -151,8 +138,6 @@ static void target_exit(void)
         pthread_mutexattr_destroy(&mat_head);
 
 	while(list) {
-		free(list->name);
-		free(list->info);
 		free(list);
 		list = list->next;
 	}

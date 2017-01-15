@@ -10,7 +10,7 @@
 #define TYPE_P	0
 #define TYPE_N	1
 
-static struct cylinder_info motion_state[] = {
+static struct cylinder_info motion_state[NUM_CYLINDERS] = {
 	[0] {.dev = {.ack = MESSAGE_1},
 	     .fix = {.type = TYPE_N,.range = 25,.area = 1},
 	     .mea = {.c = 237,.pa = 60,.na = 70,.pv = 110,.nv = -100}},
@@ -50,8 +50,6 @@ static struct cylinder_info motion_state[] = {
 };
 
 static struct interface_info control_state = {.dev = {.ack = MESSAGE_0} };
-
-#define NCYLINDER	(sizeof(motion_state)/sizeof(struct cylinder_info))
 
 static int trunc_name_get_id(char *msg, const char *fmt,
 			     char *idout, char **nameout)
@@ -386,9 +384,8 @@ inline struct interface_info *get_interface_info(void)
 	return &control_state;
 }
 
-inline struct cylinder_info *get_motion_info(int *arry_size)
+inline struct cylinder_info *get_motion_info(void)
 {
-	*arry_size = NCYLINDER;
 	return motion_state;
 }
 

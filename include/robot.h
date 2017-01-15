@@ -62,7 +62,7 @@ struct interface_info {
 };
 
 inline struct interface_info *get_interface_info(void);
-inline struct cylinder_info *get_motion_info(int *arry_size);
+inline struct cylinder_info *get_motion_info(void);
 int test_device(struct device *dev);
 
 int update_voltage(void);
@@ -85,5 +85,7 @@ int megnet(struct cylinder_info *cy, int count);
 #define VOLTAGE_OVE		200
 
 #define ENCODER_OFFSET		128
+
+#define NUM_CYLINDERS		12
 
 #endif

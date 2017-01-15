@@ -1,12 +1,13 @@
 #ifndef TARGET_H
 #define TARGET_H
 
+#include <robot.h>
+
 struct target {
-        char *name;
-        struct cylinder_info *info;
-        int num;
-        struct target *next;
-        struct target *prev;
+	char *name;
+	struct cy_tag cy[NUM_CYLINDERS];
+	struct target *next;
+	struct target *prev;
 };
 
 int alloc_target(char *name);

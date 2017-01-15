@@ -9,7 +9,6 @@
 
 struct interface_info *if_info;
 static struct cylinder_info *info;
-static int count;
 
 static unsigned short update_mask = 0;
 static int update_display = 0;
@@ -30,7 +29,7 @@ static void refresh_window(void)
 	char masked;
 
 	werase(motion_win);
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < NUM_CYLINDERS; i++) {
 		masked = update_mask & (1 << i) ? 'm' : ' ';
 		if (!info[i].dev.id)
 			wprintw(motion_win, "*[%d]: NULL", i);
@@ -56,7 +55,7 @@ static int do_update(struct func_arg *args)
 
 	air_loading = 0;
 	megs_on = 0;
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < NUM_CYLINDERS; i++) {
 		if ((1 << i) & update_mask)
 			continue;
 		if (!info[i].dev.id)
@@ -209,7 +208,7 @@ static int do_set(struct func_arg *args)
 	int i;
 
 	if (set_detect) {
-		for (i = 0; i < count; i++) {
+		for (i = 0; i < NUM_CYLINDERS; i++) {
 			test_device(&info[i].dev);
 			if (!info[i].dev.id)
 				ret = -1;
@@ -218,7 +217,7 @@ static int do_set(struct func_arg *args)
 			goto set_end;
 	}
 
-	if (set_id < 0 && set_id >= count) {
+	if (set_id < 0 && set_id >= NUM_CYLINDERS) {
 		ret = -1;
 		goto set_end;
 	}
@@ -278,7 +277,7 @@ static struct input_cmd cmd = {
 static int reg_cmd(void)
 {
 	if_info = get_interface_info();
-	info = get_motion_info(&count);
+	info = get_motion_info();
 	register_cmd(&cmd);
 	return 0;
 }
