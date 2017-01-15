@@ -19,14 +19,19 @@ sleep 1
 ./pj3cmd motion set,id=8,meg=-30
 ./pj3cmd motion set,id=10,meg=-30
 sleep 1
+./pj3cmd motion set,id=8,enc=min
+./pj3cmd motion set,id=10,enc=min
 
 # twist
 ./pj3cmd motion set,id=0,meg=-30
 ./pj3cmd motion set,id=2,meg=30
 sleep 1
+
 ./pj3cmd motion set,id=0,meg=30
 ./pj3cmd motion set,id=2,meg=-30
 sleep 1
+./pj3cmd motion set,id=0,enc=max
+./pj3cmd motion set,id=2,enc=min
 
 # put down right foot
 ./pj3cmd motion set,id=4,meg=-30
@@ -40,3 +45,6 @@ sleep 1
 ./pj3cmd motion set,id=4,meg=-10
 ./pj3cmd motion set,id=6,meg=30
 ./pj3cmd motion set,id=10,meg=5
+sleep 1
+./pj3cmd motion set,id=4,enc=min
+./pj3cmd motion set,id=6,enc=max
