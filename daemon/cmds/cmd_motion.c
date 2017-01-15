@@ -36,8 +36,8 @@ static void refresh_window(void)
 			wprintw(motion_win, "*[%d]: NULL", i);
 		else
 			wprintw(motion_win, "%c[%d]: %6hu,%hd,%x",
-				masked, i, info[i].var.len, info[i].var.speed,
-				info[i].var.port);
+				masked, i, info[i].enc.len, info[i].speed,
+				info[i].port);
 
 		if (i & 0x1)
 			waddch(motion_win, '\n');
@@ -64,8 +64,8 @@ static int do_update(struct func_arg *args)
 		if (update_cylinder_state(&info[i]))
 			update_mask |= 1 << i;
 		air_loading +=
-		    info[i].var.speed * info[i].meg_dir * info[i].fix.area;
-		if (!(info[i].var.port & (0x8 | 0x4)))
+		    info[i].speed * info[i].meg_dir * info[i].fix.area;
+		if (!(info[i].port & (0x8 | 0x4)))
 			megs_on &= ~(0x1 << i);
 	}
 
@@ -143,7 +143,7 @@ static int set_meg_once(int id, int val)
 			goto err_meg;
 		}
 
-	       	if (air_loading < MAX_LOADING)
+		if (air_loading < MAX_LOADING)
 			break;
 		if (sys_ms > load_expire) {
 			log_info("%s, wait engine error, stop!\n",
@@ -160,14 +160,12 @@ static int set_meg_once(int id, int val)
 
 	ret = update_presure();
 	if (ret) {
-		log_info("%s, update presure err, stop!\n",
-			 __FUNCTION__);
+		log_info("%s, update presure err, stop!\n", __FUNCTION__);
 		goto err_meg;
 	}
 	ret = update_voltage();
 	if (ret) {
-		log_info("%s, update voltage err, stop!\n",
-			 __FUNCTION__);
+		log_info("%s, update voltage err, stop!\n", __FUNCTION__);
 		goto err_meg;
 	}
 
@@ -175,7 +173,7 @@ static int set_meg_once(int id, int val)
 		air_expire = sys_ms + AIR_EXPIER;
 	if (if_info->vol < VOLTAGE_LOW)
 		vol_expire = sys_ms + VOL_EXPIER;
-	
+
 	while (if_info->air < air || if_info->vol < VOLTAGE_LOW) {
 		if (sys_ms > air_expire) {
 			log_info("%s, wait air error, stop!\n", __FUNCTION__);
@@ -190,8 +188,8 @@ static int set_meg_once(int id, int val)
 	}
 	air_expire = ~0x0;
 	vol_expire = ~0x0;
-	
-	while(if_info->engine)
+
+	while (if_info->engine)
 		usleep(50000);
 
 	megs_on |= 0x1 << id;

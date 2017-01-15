@@ -8,10 +8,13 @@ struct device {
 
 struct cylinder_info {
 	struct device dev;
+
 	const struct fix_info {
+		const char type;
 		unsigned short range;
 		short int area;
 	} fix;
+
 	const struct measured_info {
 		unsigned short c;
 		unsigned char pa;
@@ -19,20 +22,21 @@ struct cylinder_info {
 		short int pv;
 		short int nv;
 	} mea;
-	char force;
-	char inactive;
-	const char type;
+
+	struct cy_tag {
+		volatile unsigned char id;
+		char force;
+		char inactive;
+		volatile unsigned short len;
+	} enc;
+
+	volatile unsigned char port;
+	volatile short int speed;
+
 	unsigned long meg_delay;
 	int meg_dir;
-	union {
-		struct cy_var {
-			volatile unsigned char port;
-			volatile short int speed;
-			volatile unsigned short len;
-			volatile unsigned char id;
-		} var;
-		char raw[6];
-	};
+
+	volatile unsigned char raw[6];
 };
 
 struct interface_info {

@@ -12,52 +12,40 @@
 
 static struct cylinder_info motion_state[] = {
 	[0] {.dev = {.ack = MESSAGE_1},
-	     .type = TYPE_N,
-	     .fix = {25, 1},
+	     .fix = {.type = TYPE_N,.range = 25,.area = 1},
 	     .mea = {.c = 237,.pa = 60,.na = 70,.pv = 110,.nv = -100}},
 	[1] {.dev = {.ack = MESSAGE_7},
-	     .type = TYPE_P,
-	     .fix = {25, 1},
+	     .fix = {.type = TYPE_P,.range = 25,.area = 1},
 	     .mea = {.c = 236,.pa = 60,.na = 70,.pv = 110,.nv = -100}},
 	[2] {.dev = {.ack = MESSAGE_2},
-	     .type = TYPE_P,
-	     .fix = {25, 1},
+	     .fix = {.type = TYPE_P,.range = 25,.area = 1},
 	     .mea = {.c = 240,.pa = 60,.na = 70,.pv = 50,.nv = -50}},
 	[3] {.dev = {.ack = MESSAGE_8},
-	     .type = TYPE_N,
-	     .fix = {25, 1},
+	     .fix = {.type = TYPE_N,.range = 25,.area = 1},
 	     .mea = {.c = 243,.pa = 60,.na = 70,.pv = 50,.nv = -50}},
 	[4] {.dev = {.ack = MESSAGE_3},
-	     .type = TYPE_N,
-	     .fix = {140, 4},
+	     .fix = {.type = TYPE_N,.range = 140,.area = 4},
 	     .mea = {.c = 1400,.pa = 60,.na = 60,.pv = 240,.nv = -140}},
 	[5] {.dev = {.ack = MESSAGE_9},
-	     .type = TYPE_P,
-	     .fix = {140, 4},
+	     .fix = {.type = TYPE_P,.range = 140,.area = 4},
 	     .mea = {.c = 1427,.pa = 60,.na = 60,.pv = 240,.nv = -140}},
 	[6] {.dev = {.ack = MESSAGE_4},
-	     .type = TYPE_N,
-	     .fix = {125, 4},
+	     .fix = {.type = TYPE_N,.range = 125,.area = 4},
 	     .mea = {.c = 1180,.pa = 60,.na = 70,.pv = 200,.nv = -110}},
 	[7] {.dev = {.ack = MESSAGE_A},
-	     .type = TYPE_P,
-	     .fix = {125, 4},
+	     .fix = {.type = TYPE_P,.range = 125,.area = 4},
 	     .mea = {.c = 1150,.pa = 60,.na = 70,.pv = 200,.nv = -110}},
 	[8] {.dev = {.ack = MESSAGE_5},
-	     .type = TYPE_P,
-	     .fix = {50, 1},
+	     .fix = {.type = TYPE_P,.range = 50,.area = 1},
 	     .mea = {.c = 500,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 	[9] {.dev = {.ack = MESSAGE_B},
-	     .type = TYPE_N,
-	     .fix = {50, 1},
+	     .fix = {.type = TYPE_N,.range = 50,.area = 1},
 	     .mea = {.c = 472,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 	[10] {.dev = {.ack = MESSAGE_6},
-	      .type = TYPE_N,
-	      .fix = {50, 1},
+	      .fix = {.type = TYPE_N,.range = 50,.area = 1},
 	      .mea = {.c = 494,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 	[11] {.dev = {.ack = MESSAGE_C},
-	      .type = TYPE_P,
-	      .fix = {50, 1},
+	      .fix = {.type = TYPE_P,.range = 50,.area = 1},
 	      .mea = {.c = 436,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 };
 
@@ -345,7 +333,6 @@ int update_cylinder_state(struct cylinder_info *cy)
 {
 	char cmd[16];
 	int ret;
-	unsigned char res[sizeof(cy->raw)];
 
 	if (!cy->dev.id) {
 		return -1;
@@ -353,41 +340,40 @@ int update_cylinder_state(struct cylinder_info *cy)
 
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, ">%c state;", cy->dev.id);
-	ret = get_byte(cmd, MESSAGE_ENC, res, sizeof(res));
+	ret = get_byte(cmd, MESSAGE_ENC, cy->raw, sizeof(cy->raw));
 
 	if (ret) {
 		log_err();
 		return -1;
 	}
 
-	cy->var.id = res[0];
+	cy->enc.id = cy->raw[0];
 
-	if (cy->dev.id != cy->var.id) {
+	if (cy->dev.id != cy->enc.id) {
 		log_err();
-		log_info("size cy->var:%d\n", sizeof(cy->var));
 		return -1;
 	}
 
-	if (cy->type == TYPE_N) {
-		cy->var.len = 0xffff - (res[1] << 8) - res[2];
-		cy->var.speed = -1 * (res[3] << 8) - res[4];
+	if (cy->fix.type == TYPE_N) {
+		cy->enc.len = 0xffff - (cy->raw[1] << 8) - cy->raw[2];
+		cy->speed = -1 * (cy->raw[3] << 8) - cy->raw[4];
 	} else {
-		cy->var.len = (res[1] << 8) + res[2];
-		cy->var.speed = (res[3] << 8) + res[4];
+		cy->enc.len = (cy->raw[1] << 8) + cy->raw[2];
+		cy->speed = (cy->raw[3] << 8) + cy->raw[4];
 	}
 
-	cy->var.port = res[5];
+	cy->port = cy->raw[5];
 
 	if (sys_ms > cy->meg_delay) {
 		cy->meg_delay = ~0x0;
 		cy->meg_dir = 0;
 	}
 
-	if (cy->var.port & 0x4) {
+	if (cy->port & 0x4) {
 		cy->meg_delay = sys_ms + MEG_EXPIRE;
 		cy->meg_dir = -1;
 	}
-	if (cy->var.port & 0x8) {
+	if (cy->port & 0x8) {
 		cy->meg_delay = sys_ms + MEG_EXPIRE;
 		cy->meg_dir = 1;
 	}
@@ -464,7 +450,7 @@ int megnet(struct cylinder_info *cy, int count)
 			log_err();
 			return -1;
 		}
-		cy->force = '+';
+		cy->enc.force = '+';
 		return 0;
 	}
 
@@ -474,7 +460,7 @@ int megnet(struct cylinder_info *cy, int count)
 			log_err();
 			return -1;
 		}
-		cy->force = '-';
+		cy->enc.force = '-';
 		return 0;
 	}
 
@@ -496,7 +482,7 @@ int set_encoder(struct cylinder_info *cy, int val)
 		return -1;
 	}
 
-	if (cy->type == TYPE_N)
+	if (cy->fix.type == TYPE_N)
 		val = 65535 - val;
 
 	sprintf(str, ">%c set %4x;", cy->dev.id, val);
