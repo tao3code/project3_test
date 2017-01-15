@@ -73,7 +73,7 @@ static int do_kill(int argc, char *argv[])
 
 static int help_kill(char *buf, int argc, char *argv[])
 {
-	return sprintf(buf, "kill server");
+	return sprintf(buf, "kill server\n");
 }
 
 static char help_msg[256];
@@ -95,7 +95,7 @@ static int serial_send_cmd(int argc, char *argv[])
 
 	ret = sent_cmd_alloc_response(buf, &res);
 	if (ret < 0) {
-		len = sprintf(help_msg, "operation fail: %s", buf);
+		len = sprintf(help_msg, "operation fail: %s\n", buf);
 		socket_write_buf(help_msg, len);
 		return 0;
 	}
@@ -111,7 +111,7 @@ static int serial_send_cmd(int argc, char *argv[])
 
 static int help_serial(char *buf, int argc, char *argv[])
 {
-	return sprintf(buf, "sent string to serial port");
+	return sprintf(buf, "sent string to serial port\n");
 }
 
 static struct input_cmd buildin_cmd[] = {
@@ -146,7 +146,9 @@ static int list_all_cmds(char *buf)
 		cmd_list = cmd_list->next;
 	}
 
-	socket_write_buf(buf, len);
+	buf[len] = '\n';
+
+	socket_write_buf(buf, len + 1);
 	return 0;
 }
 
@@ -222,15 +224,16 @@ int just_run_cmd(char *cmd_in)
 			continue;
 		}
 		err = cmd_list->func(argc, args);
-		if (err) {
-			len = sprintf(help_msg, "err: '%s', try 'help %s'",
-				      cmd, cmd);
+		if (err && !socket_write_buf(0, 0)) {
+			len =
+			    sprintf(help_msg,
+				    "err: '%s', try 'help %s'\n", cmd, cmd);
 			socket_write_buf(help_msg, len);
 		}
 		return err;
 	}
 
-	len = sprintf(help_msg, "unknow: '%s', try 'help'", cmd);
+	len = sprintf(help_msg, "unknow: '%s', try 'help'\n", cmd);
 	socket_write_buf(help_msg, len);
 
 	return -1;

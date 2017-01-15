@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 	memset(buf, 0, sizeof(buf));
 	ret = read(s, buf, sizeof(buf));
 	if (ret > 0) {
-		printf("%s\n", buf);
+		printf("%s", buf);
 		ret = -1;
 	} else
 		ret = 0;

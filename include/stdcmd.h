@@ -1,4 +1,5 @@
 #ifndef STDCMD_H
+#define STDCMD_H
 
 #define MAX_VAL_LEN	16
 

@@ -212,13 +212,14 @@ int stdcmd_help(char *buf, struct cmd_func *funcs, int argc, char *argv[])
 
 	if (argc == 0) {
 		len += help_func(&buf[len], 0, funcs);
+		buf[len] = '\n';
+		len++;
 	} else {
 		for (i = 0; i < argc; i++) {
 			len += help_func(&buf[len], argv[i], funcs);
 			buf[len] = '\n';
 			len++;
 		}
-		buf[len - 1] = 0;
 	}
 
 	return len;

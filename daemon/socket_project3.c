@@ -132,6 +132,14 @@ int socket_read_client(char *buf, int len)
 
 int socket_write_buf(char *buf, int len)
 {
-	memcpy(socket_buf, buf, len);
-	return 0;
+	int buf_len;
+
+	buf_len = strlen(socket_buf);
+	if (!buf)
+		return buf_len;
+
+	if (buf_len + len >= sizeof(socket_buf))
+		return buf_len;
+	memcpy(&socket_buf[buf_len], buf, len);
+	return buf_len + len;
 }

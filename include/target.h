@@ -2,9 +2,10 @@
 #define TARGET_H
 
 #include <robot.h>
+#include <stdcmd.h>
 
 struct target {
-	char *name;
+	char name[MAX_VAL_LEN];
 	struct cy_tag cy[NUM_CYLINDERS];
 	struct target *next;
 	struct target *prev;
