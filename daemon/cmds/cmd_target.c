@@ -11,9 +11,9 @@ static int check_id(void *var)
 {
 	int *id = var;
 
-        if (*id < 0 || *id >= NUM_CYLINDERS)
-                return -1;
-        return 0;
+	if (*id < 0 || *id >= NUM_CYLINDERS)
+		return -1;
+	return 0;
 }
 
 static char set_name[sizeof(((struct target *) 0)->name)];
@@ -99,7 +99,7 @@ static int do_set(struct func_arg *args)
 			set_inactive = 1;
 		t->cy[set_id].inactive = set_inactive;
 	}
-	
+
 	if (set_len) {
 		if (set_len < ENCODER_OFFSET)
 			set_len = ENCODER_OFFSET;
@@ -140,15 +140,14 @@ static int do_list(struct func_arg *args)
 	int msg_len = 0;
 	int ret = 0;
 	int i;
-	
+
 	name_len = strlen(list_name);
 
 	if (!name_len) {
 		msg_len = 0;
 		t = find_target(NULL);
 		while (t) {
-			msg_len += sprintf(&msg[msg_len], "%s ",
-						t->name);
+			msg_len += sprintf(&msg[msg_len], "%s ", t->name);
 			t = t->next;
 		}
 		msg[msg_len] = '\n';
@@ -168,23 +167,23 @@ static int do_list(struct func_arg *args)
 		msg_len = sprintf(msg, "%s.cy[%d] = {", t->name, list_id);
 		if (t->cy[list_id].force)
 			msg_len += sprintf(&msg[msg_len], ".force = %c,",
-						t->cy[list_id].force);
+					   t->cy[list_id].force);
 		if (t->cy[list_id].inactive)
 			msg_len += sprintf(&msg[msg_len], ".inactive = %d,",
-						t->cy[list_id].inactive);
+					   t->cy[list_id].inactive);
 		if (t->cy[list_id].len)
 			msg_len += sprintf(&msg[msg_len], ".len = %hu}\n",
-						t->cy[list_id].len);
+					   t->cy[list_id].len);
 		goto end_list;
 	}
-		
+
 	msg_len = sprintf(msg, "%s:\n", t->name);
 
 	for (i = 0; i < NUM_CYLINDERS; i++) {
 		msg_len += sprintf(&msg[msg_len],
-				"[%d]{%d, %d, %hu}\n",
-				i, t->cy[i].force,
-				t->cy[i].inactive, t->cy[i].len);
+				   "[%d]{%d, %d, %hu}\n",
+				   i, t->cy[i].force,
+				   t->cy[i].inactive, t->cy[i].len);
 	}
 
  end_list:
@@ -210,7 +209,7 @@ static int do_free(struct func_arg *args)
 	char msg[128];
 	int msg_len = 0;
 	int ret = 0;
-	
+
 	name_len = strlen(free_name);
 	if (!name_len) {
 		msg_len = sprintf(msg, "miss 'name'\n");
@@ -227,8 +226,7 @@ static int do_free(struct func_arg *args)
 	}
 
 	if (free_target(free_name)) {
-		msg_len = sprintf(msg, "free target '%s' failue!\n",
-				  free_name);
+		msg_len = sprintf(msg, "free target '%s' failue!\n", free_name);
 		ret = -1;
 		goto end_free;
 	}
@@ -330,7 +328,7 @@ static struct input_cmd cmd = {
 
 static int reg_cmd(void)
 {
-        info = get_motion_info();
+	info = get_motion_info();
 	register_cmd(&cmd);
 	return 0;
 }

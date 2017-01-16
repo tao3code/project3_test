@@ -4,15 +4,22 @@
 #include <stdarg.h>
 #include <stdcmd.h>
 #include <log_project3.h>
+#include <socket_project3.h>
 
 static char err_msg[256];
 
 static void gen_err(const char *str, const char *in, const char *ep)
 {
-	unsigned long pos = (unsigned long)ep - (unsigned long)in;
+	int len;
+	unsigned long pos;
 
-	memcpy(err_msg, in, pos + 1);
-	sprintf(&err_msg[pos], "(%s)%s", str, ep);
+	len = sprintf(err_msg, "error:");
+	pos = (unsigned long)ep - (unsigned long)in;
+
+	memcpy(&err_msg[len], in, pos + 1);
+	len += pos;
+	len += sprintf(&err_msg[len], "(%s)%s\n", str, ep);
+	socket_write_buf(err_msg, len);
 }
 
 static void pop_len(const char *start, int *key_len, char *key_out)
@@ -55,7 +62,6 @@ int stdcmd_update_args(const char *in, struct func_arg *args)
 	pop_len(str, &w_len, &w_end);
 	if (!args) {
 		gen_err("miss args", in, str);
-		log_info("%s\n", err_msg);
 		return -1;
 	}
 
@@ -65,7 +71,6 @@ int stdcmd_update_args(const char *in, struct func_arg *args)
 
 		if (w_end != '=') {
 			gen_err("<-miss '='", in, str + w_len);
-			log_info("%s\n", err_msg);
 			return -1;
 		}
 
@@ -77,7 +82,6 @@ int stdcmd_update_args(const char *in, struct func_arg *args)
 
 		if (!arg->name) {
 			gen_err("unknow->", in, str);
-			log_info("%s\n", err_msg);
 			return -1;
 		}
 
@@ -85,14 +89,12 @@ int stdcmd_update_args(const char *in, struct func_arg *args)
 
 		if (*str == '=' || *str == ',' || !*str) {
 			gen_err("<-illegal", in, str);
-			log_info("%s\n", err_msg);
 			return -1;
 		}
 
 		pop_len(str, &w_len, &w_end);
 		if (w_len >= MAX_VAL_LEN) {
 			gen_err("exceed->", in, str);
-			log_info("%s\n", err_msg);
 			return -1;
 		}
 
@@ -104,14 +106,12 @@ int stdcmd_update_args(const char *in, struct func_arg *args)
 		ret = sscanf(buf, arg->type, arg->var);
 		if (ret != 1) {
 			gen_err("<-failure", in, str + w_len);
-			log_info("%s\n", err_msg);
 			return -1;
 		}
 
 		if (arg->check) {
 			if (arg->check(arg->var)) {
 				gen_err("<-wrong", in, str + w_len);
-				log_info("%s\n", err_msg);
 				return -1;
 			}
 		}
@@ -151,7 +151,6 @@ int stdcmd_run_funcs(const char *in, struct cmd_func *funcs)
 		return funcs[i].func(funcs[i].args);
 	}
 	gen_err("unsupport->", in, str);
-	log_info("%s\n", err_msg);
 	return -1;
 }
 
