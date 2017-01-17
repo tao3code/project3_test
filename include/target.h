@@ -14,5 +14,6 @@ struct target {
 int alloc_target(char *name);
 struct target *find_target(char *name);
 int free_target(char *name);
+int transform(struct target *tag, unsigned long expire);
 
 #endif

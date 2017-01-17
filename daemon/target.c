@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 #include <init.h>
 #include <log_project3.h>
 #include <robot.h>
 #include <target.h>
+#include <input_cmd.h>
 
 static pthread_mutex_t mtx_head;
 static pthread_mutexattr_t mat_head;
@@ -103,6 +105,54 @@ int free_target(char *name)
 	pthread_mutex_unlock(&mtx_head);
 	free(t);
 	return 0;
+}
+
+
+static int target_check(struct target *tag)
+{
+	int i;
+
+	if (!tag)
+		return -1;
+	for (i = 0; i < NUM_CYLINDERS; i++) {
+		if (!tag->cy[i].id)
+			return -1;
+		if (!tag->cy[i].len)
+			return -1;
+	}
+
+	return 0;
+}
+
+static unsigned try_transform_once(struct target *tag)
+{
+	return 0;
+}
+
+#define TARGET_DIFF_OK	500
+
+int transform(struct target *tag, unsigned long expire)
+{
+	unsigned long timeout_ms;
+	unsigned diff;
+
+	if (target_check(tag)) {
+		log_err();
+		return -1;
+	}
+
+	timeout_ms = sys_ms + expire;
+
+	while (timeout_ms > sys_ms) {
+		diff = try_transform_once(tag);
+		if (diff < TARGET_DIFF_OK)
+			return 0;
+		usleep(50000);
+	}
+
+	log_info("%s time out, diff:%u\n", __FUNCTION__, diff);
+
+	return -1;
 }
 
 static int target_init(void)

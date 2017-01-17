@@ -7,6 +7,61 @@
 
 static struct cylinder_info *info;
 
+#define MAX_TRANS_EXPIRE_MS	5000
+
+static char trans_name[sizeof(((struct target *) 0)->name)];
+static unsigned long trans_expire = MAX_TRANS_EXPIRE_MS;
+
+static int check_expire(void *var)
+{
+	if (trans_expire > MAX_TRANS_EXPIRE_MS)
+		trans_expire = MAX_TRANS_EXPIRE_MS;
+	return 0;
+}
+
+static struct func_arg trans_args[] = {
+	{.name = "name",
+	 .var = trans_name,
+	 .type = "%s"},
+	{.name = "name",
+	 .var = &trans_expire,
+	 .type = "%lu",
+	 .check = check_expire},
+	{0},
+};
+
+static int do_trans(struct func_arg *args)
+{
+	int name_len;
+	struct target *t;
+	char msg[128];
+	int msg_len = 0;
+	int ret = 0;
+
+	name_len = strlen(trans_name);
+	if (!name_len) {
+		msg_len = sprintf(msg, "miss 'name'\n");
+		ret = -1;
+		goto end_trans;
+	}
+
+	t = find_target(trans_name);
+	if (!t) {
+		msg_len = sprintf(msg, "target with name '%s' not exist!\n",
+				  trans_name);
+		ret = -1;
+		goto end_trans;
+	}
+
+	ret = transform(t, trans_expire);
+
+ end_trans:
+	socket_write_buf(msg, msg_len);
+	memset(trans_name, 0, sizeof(trans_name));
+	trans_expire = MAX_TRANS_EXPIRE_MS;
+	return ret;
+}
+
 static int check_id(void *var)
 {
 	int *id = var;
@@ -287,6 +342,9 @@ static int do_alloc(struct func_arg *args)
 }
 
 static struct cmd_func target_funcs[] = {
+	{.name = "trans",
+	 .func = do_trans,
+	 .args = trans_args},
 	{.name = "alloc",
 	 .func = do_alloc,
 	 .args = alloc_args},
