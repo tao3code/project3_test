@@ -26,16 +26,16 @@ static struct func_arg update_args[] = {
 static void refresh_window(void)
 {
 	int i;
-	char masked;
+	char state;
 
 	werase(motion_win);
 	for (i = 0; i < NUM_CYLINDERS; i++) {
-		masked = update_mask & (1 << i) ? 'm' : ' ';
+		state = update_mask & (1 << i) ? 'm' : info[i].enc.force;
 		if (!info[i].dev.id)
 			wprintw(motion_win, "*[%d]: NULL", i);
 		else
 			wprintw(motion_win, "%c[%d]: %6hu,%hd,%x",
-				masked, i, info[i].enc.len, info[i].speed,
+				state, i, info[i].enc.len, info[i].speed,
 				info[i].port);
 
 		if (i & 0x1)
@@ -82,7 +82,15 @@ volatile unsigned megs_on = 0;
 static int set_detect = 0;
 static int set_id = -1;
 static int set_meg = 0;
+static char set_force = 0;
 static char set_enc[MAX_VAL_LEN];
+
+static int check_force(void *var)
+{
+	if (set_force != '+' || set_force != '-')
+		return -1;
+	return 0;
+}
 
 static struct func_arg set_args[] = {
 	{.name = "detect",
@@ -94,6 +102,10 @@ static struct func_arg set_args[] = {
 	{.name = "meg",
 	 .var = &set_meg,
 	 .type = "%d"},
+	{.name = "force",
+	 .var = &set_force,
+	 .type = "%c",
+	 .check = check_force},
 	{.name = "enc",
 	 .var = &set_enc,
 	 .type = "%s"},
@@ -229,11 +241,18 @@ static int do_set(struct func_arg *args)
 			goto set_end;
 	}
 
-	if (set_meg != 0)
+	if (set_meg != 0) {
 		ret = set_meg_once(set_id, set_meg);
+		if (ret)
+			goto set_end;
+	}
+
+	if (set_force)
+		info[set_id].enc.force = set_force;
 
  set_end:
 	set_meg = 0;
+	set_force = 0;
 	memset(set_enc, 0, sizeof(set_enc));
 	set_id = -1;
 	set_detect = 0;
