@@ -86,20 +86,6 @@ int sent_cmd_alloc_response(const char *in, char **out)
 	return ret;
 }
 
-int send_cmd(const char *cmd)
-{
-	int ret;
-	char *msg;
-
-	ret = sent_cmd_alloc_response(cmd, &msg);
-
-	if (ret < 0)
-		return ret;
-
-	free(msg);
-	return 0;
-}
-
 int serial_init(char *path)
 {
 	int err;

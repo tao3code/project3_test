@@ -3,6 +3,7 @@
 
 struct device {
 	char id;
+	char detected;
 	const char *ack;
 };
 
@@ -35,8 +36,6 @@ struct cylinder_info {
 
 	unsigned long meg_delay;
 	int meg_dir;
-
-	volatile unsigned char raw[6];
 };
 
 struct interface_info {
@@ -45,19 +44,14 @@ struct interface_info {
 	volatile unsigned char engine;
 	volatile unsigned char vol;
 	volatile unsigned char air;
-	union {
-		struct {
-			volatile int short gz;
-			volatile int short gy;
-			volatile int short gx;
-			volatile int short thermal;
-			volatile int short az;
-			volatile int short ay;
-			volatile int short ax;
-		};
-		struct {
-			volatile unsigned char raw[14];
-		};
+	struct {
+		volatile int short gz;
+		volatile int short gy;
+		volatile int short gx;
+		volatile int short thermal;
+		volatile int short az;
+		volatile int short ay;
+		volatile int short ax;
 	};
 };
 

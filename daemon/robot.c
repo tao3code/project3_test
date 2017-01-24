@@ -11,317 +11,168 @@
 #define TYPE_N	1
 
 static struct cylinder_info motion_state[NUM_CYLINDERS] = {
-	[0] {.dev = {.ack = MESSAGE_1},
+	[0] {.dev = {.id = '1',.ack = MESSAGE_1},
 	     .fix = {.type = TYPE_N,.range = 25,.area = 1},
 	     .mea = {.c = 237,.pa = 60,.na = 70,.pv = 110,.nv = -100}},
-	[1] {.dev = {.ack = MESSAGE_7},
+	[1] {.dev = {.id = '7',.ack = MESSAGE_7},
 	     .fix = {.type = TYPE_P,.range = 25,.area = 1},
 	     .mea = {.c = 236,.pa = 60,.na = 70,.pv = 110,.nv = -100}},
-	[2] {.dev = {.ack = MESSAGE_2},
+	[2] {.dev = {.id = '2',.ack = MESSAGE_2},
 	     .fix = {.type = TYPE_P,.range = 25,.area = 1},
 	     .mea = {.c = 240,.pa = 60,.na = 70,.pv = 50,.nv = -50}},
-	[3] {.dev = {.ack = MESSAGE_8},
+	[3] {.dev = {.id = '8',.ack = MESSAGE_8},
 	     .fix = {.type = TYPE_N,.range = 25,.area = 1},
 	     .mea = {.c = 243,.pa = 60,.na = 70,.pv = 50,.nv = -50}},
-	[4] {.dev = {.ack = MESSAGE_3},
+	[4] {.dev = {.id = '3',.ack = MESSAGE_3},
 	     .fix = {.type = TYPE_N,.range = 140,.area = 4},
 	     .mea = {.c = 1400,.pa = 60,.na = 60,.pv = 240,.nv = -140}},
-	[5] {.dev = {.ack = MESSAGE_9},
+	[5] {.dev = {.id = '9',.ack = MESSAGE_9},
 	     .fix = {.type = TYPE_P,.range = 140,.area = 4},
 	     .mea = {.c = 1427,.pa = 60,.na = 60,.pv = 240,.nv = -140}},
-	[6] {.dev = {.ack = MESSAGE_4},
+	[6] {.dev = {.id = '4',.ack = MESSAGE_4},
 	     .fix = {.type = TYPE_N,.range = 125,.area = 4},
 	     .mea = {.c = 1180,.pa = 60,.na = 70,.pv = 200,.nv = -110}},
-	[7] {.dev = {.ack = MESSAGE_A},
+	[7] {.dev = {.id = 'A',.ack = MESSAGE_A},
 	     .fix = {.type = TYPE_P,.range = 125,.area = 4},
 	     .mea = {.c = 1150,.pa = 60,.na = 70,.pv = 200,.nv = -110}},
-	[8] {.dev = {.ack = MESSAGE_5},
+	[8] {.dev = {.id = '5',.ack = MESSAGE_5},
 	     .fix = {.type = TYPE_P,.range = 50,.area = 1},
 	     .mea = {.c = 500,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
-	[9] {.dev = {.ack = MESSAGE_B},
+	[9] {.dev = {.id = 'B',.ack = MESSAGE_B},
 	     .fix = {.type = TYPE_N,.range = 50,.area = 1},
 	     .mea = {.c = 472,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
-	[10] {.dev = {.ack = MESSAGE_6},
+	[10] {.dev = {.id = '6',.ack = MESSAGE_6},
 	      .fix = {.type = TYPE_N,.range = 50,.area = 1},
 	      .mea = {.c = 494,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
-	[11] {.dev = {.ack = MESSAGE_C},
+	[11] {.dev = {.id = 'C',.ack = MESSAGE_C},
 	      .fix = {.type = TYPE_P,.range = 50,.area = 1},
 	      .mea = {.c = 436,.pa = 60,.na = 60,.pv = 160,.nv = -80}},
 };
 
-static struct interface_info control_state = {.dev = {.ack = MESSAGE_0} };
+static struct interface_info control_state = {
+	.dev = {.id = '0',.ack = MESSAGE_0},
+};
 
-static int trunc_name_get_id(char *msg, const char *fmt,
-			     char *idout, char **nameout)
-{
-	char *p_name = msg;
+#define CMD_VAR	\
+	char cmd[16];	\
+	char *msg;	\
+	int ret
 
-	*idout = 0;
-	*nameout = 0;
+#define ASSERT_SEND_CMD_OK(cmd_fmt, ...)	\
+do {	\
+	memset(cmd, 0, sizeof(cmd));	\
+	sprintf(cmd, cmd_fmt, __VA_ARGS__); \
+	sent_cmd_alloc_response(cmd, &msg);	\
+	if (!msg) {				\
+		log_err();			\
+		return -1;			\
+	}	\
+} while(0)
 
-	while (*fmt && *msg) {
-		if (*fmt != *msg)
-			return -1;
+#define ASSERT_SCAN_CMD_OK(expected, ...)	\
+do {	\
+	if (!expected) {		\
+		free(msg);	\
+		break;		\
+	}			\
+	ret = sscanf(msg, __VA_ARGS__);	\
+	if (ret != expected) {		\
+		log_err();	\
+		free(msg);	\
+		return -1;	\
+	}			\
+	free(msg);	\
+} while (0);
 
-		if (*fmt == ',') {
-			*msg = 0;
-			*nameout = p_name;
-		}
-
-		if (*fmt == ':') {
-			if (!*nameout)
-				return -1;
-			*idout = *(fmt + 1);
-			return 0;
-		}
-
-		fmt++;
-		msg++;
-	}
-
-	return -1;
-}
-
-static char get_assigned_id(const char *fmt)
-{
-	while (*fmt) {
-		if (*fmt == ':')
-			return *(fmt + 1);
-		fmt++;
-	}
-	return 0;
-}
+#define ASSERT_DEV_OK(dev)	\
+do {	\
+	if (!dev.detected) {	\
+		log_info("%s, no shuch device \n", __FUNCTION__);	\
+		return -1;	\
+	}	\
+} while(0)
 
 int test_device(struct device *dev)
 {
-	char cmd[16];
-	char *msg;
-	char *name;
-	char id;
-	int ret;
+	CMD_VAR;
+	char name[16];
+	unsigned short h1, h2;
 
 	if (!dev->ack) {
 		log_err();
 		return -1;
 	}
+	dev->detected = 0;
 
-	dev->id = 0;
-	memset(cmd, 0, sizeof(cmd));
-	id = get_assigned_id(dev->ack);
-	sprintf(cmd, ">%c report;", id);
-	ret = sent_cmd_alloc_response(cmd, &msg);
-	if (ret < 0)
-		return ret;
-	if (!msg)
-		return 0;
-	ret = trunc_name_get_id(msg, dev->ack, &dev->id, &name);
-	if (ret) {
-		log_err();
-		free(msg);
-		return ret;
-	}
+	ASSERT_SEND_CMD_OK(">%c report;", dev->id);
+	ASSERT_SCAN_CMD_OK(4, dev->ack, name, &dev->detected, &h1, &h2);
 
-	log_info("detect: %s, id: %c\n", name, dev->id);
-
-	return 0;
-}
-
-static unsigned char c2x(char ch)
-{
-	if (ch >= '0' && ch <= '9')
-		return ch - '0';
-	if (ch >= 'A' && ch <= 'F')
-		return ch - 'A' + 0xa;
-	if (ch >= 'a' && ch <= 'f')
-		return ch - 'a' + 0xa;
-	return 0;
-}
-
-static int msg_scan_data(char *msg, char *fmt, unsigned char *data, int n)
-{
-	int pmsg = 0;
-	int pfmt = 0;
-	int find = 0;
-	while (fmt[pfmt]) {
-		switch (fmt[pfmt]) {
-		case '\x8':
-			find++;
-			*data = c2x(msg[pmsg]);
-			pmsg++;
-			*data <<= 4;
-			*data |= c2x(msg[pmsg]);
-			data++;
-			break;
-
-		default:
-			if (fmt[pfmt] != msg[pmsg]) {
-				log_info("%s mismatch: "
-					 "fmt[%d](%x) msg[%d](%s)\n",
-					 __FUNCTION__,
-					 pfmt, fmt[pfmt], pmsg, msg);
-				return -1;
-			}
-		}
-		pfmt++;
-		pmsg++;
-		if (find >= n)
-			break;
-	}
-
-	return find;
-}
-
-static int get_byte(char *cmd, char *fmt, volatile unsigned char *byte, int n)
-{
-	int ret;
-	unsigned char b[32];
-	char *msg;
-
-	if (n > sizeof(b)) {
-		log_info("exceed max bytes(%d):%d\n", sizeof(b), n);
-		return -1;
-	}
-
-	ret = sent_cmd_alloc_response(cmd, &msg);
-
-	if (!msg) {
-		log_info("%s read nothing\n", __FUNCTION__);
-		return -1;
-	}
-
-	if (ret < strlen(fmt)) {
-		log_info("%s Message(%d) read %d\n",
-			 __FUNCTION__, strlen(fmt), ret);
-		return -1;
-	}
-
-	ret = msg_scan_data(msg, fmt, b, n);
-
-	if (ret != n) {
-		log_info("%s request %d but get %d\n", __FUNCTION__, n, ret);
-		return -1;
-	}
-
-	memcpy((char *)byte, b, ret);
-	free(msg);
+	log_info("detect: %s, id: %c\n", name, dev->detected);
 	return 0;
 }
 
 int update_voltage(void)
 {
-	char cmd[16];
-	int ret;
+	CMD_VAR;
 
-	if (!control_state.dev.id) {
-		log_info("%s, no interface board!\n", __FUNCTION__);
-		return -1;
-	}
+	ASSERT_DEV_OK(control_state.dev);
+	ASSERT_SEND_CMD_OK(">%c voltage;", control_state.dev.id);
+	ASSERT_SCAN_CMD_OK(1, MESSAGE_VOL, &control_state.vol);
 
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c voltage;", control_state.dev.id);
-	ret = get_byte(cmd, MESSAGE_VOL, &control_state.vol, 1);
-
-	if (ret) {
-		log_err();
-		return -1;
-	}
 	return 0;
 }
 
 int update_presure(void)
 {
-	char cmd[16];
-	int ret;
+	CMD_VAR;
 
-	if (!control_state.dev.id) {
-		log_info("%s, no interface board!\n", __FUNCTION__);
-		return -1;
-	}
-
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c presure;", control_state.dev.id);
-	ret = get_byte(cmd, MESSAGE_AIR, &control_state.air, 1);
-
-	if (ret) {
-		log_err();
-		return -1;
-	}
+	ASSERT_DEV_OK(control_state.dev);
+	ASSERT_SEND_CMD_OK(">%c presure;", control_state.dev.id);
+	ASSERT_SCAN_CMD_OK(1, MESSAGE_AIR, &control_state.air);
 
 	return 0;
 }
 
 int update_gyroscope(void)
 {
-	char cmd[16];
-	int ret;
-	int i;
-	unsigned char res[sizeof(control_state.raw)];
+	CMD_VAR;
 
-	if (!control_state.dev.id) {
-		log_info("%s, no interface board!\n", __FUNCTION__);
-		return -1;
-	}
-
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c gyroscope;", control_state.dev.id);
-	ret = get_byte(cmd, MESSAGE_GYRO, res, sizeof(res));
-
-	if (ret) {
-		log_err();
-		return -1;
-	}
-
-	for (i = 0; i < sizeof(res); i++)
-		control_state.raw[i] = res[sizeof(res) - i - 1];
+	ASSERT_DEV_OK(control_state.dev);
+	ASSERT_SEND_CMD_OK(">%c gyroscope;", control_state.dev.id);
+	ASSERT_SCAN_CMD_OK(7, MESSAGE_GYRO, &control_state.ax,
+			   &control_state.ay,
+			   &control_state.az,
+			   &control_state.thermal,
+			   &control_state.gx,
+			   &control_state.gy, &control_state.gz);
 
 	return 0;
-
 }
 
 int update_meg12v(void)
 {
-	char cmd[16];
-	int ret;
+	CMD_VAR;
+	char m12v_n;
 
-	if (!control_state.dev.id) {
-		log_info("%s, no interface board!\n", __FUNCTION__);
-		return -1;
-	}
+	ASSERT_DEV_OK(control_state.dev);
+	ASSERT_SEND_CMD_OK(">%c meg12v 3;", control_state.dev.id);
+	ASSERT_SCAN_CMD_OK(1, MESSAGE_MEG, &m12v_n);
 
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c meg12v 3;", control_state.dev.id);
-	ret = get_byte(cmd, MESSAGE_MEG, &control_state.m12v, 1);
-	control_state.m12v = !control_state.m12v;
-
-	if (ret) {
-		log_err();
-		return -1;
-	}
-
+	control_state.m12v = !m12v_n;
 	return 0;
 }
 
 int update_engine(void)
 {
-	char cmd[16];
-	int ret;
+	CMD_VAR;
+	char engine_n;
 
-	if (!control_state.dev.id) {
-		log_info("%s, no interface board!\n", __FUNCTION__);
-		return -1;
-	}
+	ASSERT_DEV_OK(control_state.dev);
+	ASSERT_SEND_CMD_OK(">%c engine 0;", control_state.dev.id);
+	ASSERT_SCAN_CMD_OK(1, MESSAGE_ENGINE, &engine_n);
 
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c engine 0;", control_state.dev.id);
-	ret = get_byte(cmd, MESSAGE_ENGINE, &control_state.engine, 1);
-	control_state.engine >>= 1;
-	control_state.engine = !control_state.engine;
-
-	if (ret) {
-		log_err();
-		return -1;
-	}
-
+	engine_n >>= 1;
+	control_state.engine = !engine_n;
 	return 0;
 }
 
@@ -329,23 +180,14 @@ int update_engine(void)
 
 int update_cylinder_state(struct cylinder_info *cy)
 {
-	char cmd[16];
-	int ret;
+	CMD_VAR;
+	unsigned short len;
+	short int speed;
 
-	if (!cy->dev.id) {
-		return -1;
-	}
-
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, ">%c state;", cy->dev.id);
-	ret = get_byte(cmd, MESSAGE_ENC, cy->raw, sizeof(cy->raw));
-
-	if (ret) {
-		log_err();
-		return -1;
-	}
-
-	cy->enc.id = cy->raw[0];
+	ASSERT_DEV_OK(cy->dev);
+	ASSERT_SEND_CMD_OK(">%c state;", cy->dev.id);
+	ASSERT_SCAN_CMD_OK(4, MESSAGE_ENC, &cy->enc.id, &len, &speed,
+			   &cy->port);
 
 	if (cy->dev.id != cy->enc.id) {
 		log_err();
@@ -353,14 +195,12 @@ int update_cylinder_state(struct cylinder_info *cy)
 	}
 
 	if (cy->fix.type == TYPE_N) {
-		cy->enc.len = 0xffff - (cy->raw[1] << 8) - cy->raw[2];
-		cy->speed = -1 * (cy->raw[3] << 8) - cy->raw[4];
+		cy->enc.len = 0xffff - len;
+		cy->speed = -1 * speed;
 	} else {
-		cy->enc.len = (cy->raw[1] << 8) + cy->raw[2];
-		cy->speed = (cy->raw[3] << 8) + cy->raw[4];
+		cy->enc.len = len;
+		cy->speed = speed;
 	}
-
-	cy->port = cy->raw[5];
 
 	if (sys_ms > cy->meg_delay) {
 		cy->meg_delay = ~0x0;
@@ -391,18 +231,16 @@ inline struct cylinder_info *get_motion_info(void)
 
 int meg12v_on(int state)
 {
-	char str[16];
+	CMD_VAR;
 
-	if (!control_state.dev.id) {
-		log_info("No interface board!\n");
-		return -1;
-	}
+	ASSERT_DEV_OK(control_state.dev);
 
 	switch (state) {
 	case 0:
 	case 1:
-		sprintf(str, ">%c meg12v %d;", control_state.dev.id, state);
-		send_cmd(str);
+		ASSERT_SEND_CMD_OK(">%c meg12v %d;", control_state.dev.id,
+				   state);
+		ASSERT_SCAN_CMD_OK(0, MESSAGE_OK);
 		break;
 	default:
 		log_err();
@@ -414,49 +252,36 @@ int meg12v_on(int state)
 
 int engine_on(int count)
 {
-	char str[16];
-
-	if (!control_state.dev.id) {
-		log_info("No interface board!\n");
-		return -1;
-	}
+	CMD_VAR;
 
 	if (count <= 0 || count > 255) {
 		log_err();
 		return -1;
 	}
 
-	sprintf(str, ">%c engine %x;", control_state.dev.id, count);
-	send_cmd(str);
+	ASSERT_DEV_OK(control_state.dev);
+	ASSERT_SEND_CMD_OK(">%c engine %x;", control_state.dev.id, count);
+	ASSERT_SCAN_CMD_OK(0, MESSAGE_OK);
 
 	return 0;
 };
 
 int megnet(struct cylinder_info *cy, int count)
 {
-	char str[16];
+	CMD_VAR;
 
-	if (!cy->dev.id) {
-		log_err();
-		return -1;
-	}
+	ASSERT_DEV_OK(cy->dev);
 
 	if (count > 0 && count < 255) {
-		sprintf(str, ">%c inc %2x;", cy->dev.id, count);
-		if (send_cmd(str)) {
-			log_err();
-			return -1;
-		}
+		ASSERT_SEND_CMD_OK(">%c inc %2x;", cy->dev.id, count);
+		ASSERT_SCAN_CMD_OK(0, MESSAGE_OK);
 		cy->enc.force = '+';
 		return 0;
 	}
 
 	if (count < 0 && count > -255) {
-		sprintf(str, ">%c dec %2x;", cy->dev.id, abs(count));
-		if (send_cmd(str)) {
-			log_err();
-			return -1;
-		}
+		ASSERT_SEND_CMD_OK(">%c dec %2x;", cy->dev.id, abs(count));
+		ASSERT_SCAN_CMD_OK(0, MESSAGE_OK);
 		cy->enc.force = '-';
 		return 0;
 	}
@@ -467,22 +292,20 @@ int megnet(struct cylinder_info *cy, int count)
 
 int set_encoder(struct cylinder_info *cy, int val)
 {
-	char str[16];
+	CMD_VAR;
 
 	if (val > 65535 || val < 0) {
 		log_err();
 		return -1;
 	}
 
-	if (!cy->dev.id) {
-		log_err();
-		return -1;
-	}
+	ASSERT_DEV_OK(cy->dev);
 
 	if (cy->fix.type == TYPE_N)
 		val = 65535 - val;
 
-	sprintf(str, ">%c set %4x;", cy->dev.id, val);
-	send_cmd(str);		/*todo: */
+	ASSERT_SEND_CMD_OK(">%c set %4x;", cy->dev.id, val);
+	ASSERT_SCAN_CMD_OK(0, MESSAGE_OK);
+
 	return 0;
 }
