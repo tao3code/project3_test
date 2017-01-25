@@ -7,16 +7,12 @@
 #include <robot.h>
 #include <stdcmd.h>
 
-struct interface_info *if_info;
+struct interface_info *ctrl;
 static struct cylinder_info *info;
 
-static unsigned short update_mask = 0;
 static int update_display = 0;
 
 static struct func_arg update_args[] = {
-	{.name = "mask",
-	 .var = &update_mask,
-	 .type = "%hx"},
 	{.name = "display",
 	 .var = &update_display,
 	 .type = "%d"},
@@ -26,17 +22,25 @@ static struct func_arg update_args[] = {
 static void refresh_window(void)
 {
 	int i;
-	char state;
 
 	werase(motion_win);
 	for (i = 0; i < NUM_CYLINDERS; i++) {
-		state = update_mask & (1 << i) ? 'm' : info[i].enc.force;
-		if (!info[i].dev.id)
-			wprintw(motion_win, "*[%d]: NULL", i);
-		else
-			wprintw(motion_win, "%c[%d]: %6hu,%hd,%x",
-				state, i, info[i].enc.len, info[i].speed,
+		switch (info[i].dev.state) {
+		case 0:
+			wprintw(motion_win, "[%d]: %6hu,%hd,%x",
+				i, info[i].enc.len, info[i].speed,
 				info[i].port);
+			break;
+		case MASK_NODEV:
+		case MASK_NODEV | MASK_ERR:
+			wprintw(motion_win, "[%d]: none", i);
+			break;
+		case MASK_ERR:
+			wprintw(motion_win, "[%d]: offline", i);
+			break;
+		default:
+			wprintw(motion_win, "[%d]: err", i);
+		}
 
 		if (i & 0x1)
 			waddch(motion_win, '\n');
@@ -56,12 +60,10 @@ static int do_update(struct func_arg *args)
 	air_loading = 0;
 	megs_on = 0;
 	for (i = 0; i < NUM_CYLINDERS; i++) {
-		if ((1 << i) & update_mask)
-			continue;
-		if (!info[i].dev.id)
+		if (info[i].dev.state)
 			continue;
 		if (update_cylinder_state(&info[i]))
-			update_mask |= 1 << i;
+			info[i].dev.state |= MASK_ERR;
 		air_loading +=
 		    info[i].speed * info[i].meg_dir * info[i].fix.area;
 		if (!(info[i].port & (0x8 | 0x4)))
@@ -82,15 +84,7 @@ volatile unsigned megs_on = 0;
 static int set_detect = 0;
 static int set_id = -1;
 static int set_meg = 0;
-static char set_force = 0;
 static char set_enc[MAX_VAL_LEN];
-
-static int check_force(void *var)
-{
-	if (set_force != '+' || set_force != '-')
-		return -1;
-	return 0;
-}
 
 static struct func_arg set_args[] = {
 	{.name = "detect",
@@ -102,10 +96,6 @@ static struct func_arg set_args[] = {
 	{.name = "meg",
 	 .var = &set_meg,
 	 .type = "%d"},
-	{.name = "force",
-	 .var = &set_force,
-	 .type = "%c",
-	 .check = check_force},
 	{.name = "enc",
 	 .var = &set_enc,
 	 .type = "%s"},
@@ -141,7 +131,7 @@ static int set_meg_once(int id, int val)
 
 	air = (val > 0) ? info[id].mea.pa : info[id].mea.na;
 
-	if (!if_info->m12v) {
+	if (!ctrl->m12v) {
 		log_info("%s, megnet power is not on, stop!\n", __FUNCTION__);
 		goto err_meg;
 	}
@@ -180,12 +170,12 @@ static int set_meg_once(int id, int val)
 		goto err_meg;
 	}
 
-	if (if_info->air < air && air)
+	if (ctrl->air < air && air)
 		air_expire = sys_ms + AIR_EXPIER;
-	if (if_info->vol < VOLTAGE_LOW)
+	if (ctrl->vol < VOLTAGE_LOW)
 		vol_expire = sys_ms + VOL_EXPIER;
 
-	while (if_info->air < air || if_info->vol < VOLTAGE_LOW) {
+	while (ctrl->air < air || ctrl->vol < VOLTAGE_LOW) {
 		if (sys_ms > air_expire) {
 			log_info("%s, wait air error, stop!\n", __FUNCTION__);
 			goto err_meg;
@@ -200,7 +190,7 @@ static int set_meg_once(int id, int val)
 	air_expire = ~0x0;
 	vol_expire = ~0x0;
 
-	while (if_info->engine)
+	while (ctrl->engine)
 		usleep(50000);
 
 	megs_on |= 0x1 << id;
@@ -217,22 +207,14 @@ static int do_set(struct func_arg *args)
 {
 	int ret = 0;
 	int val;
-	int i;
-
-	if (set_detect) {
-		for (i = 0; i < NUM_CYLINDERS; i++) {
-			test_device(&info[i].dev);
-			if (!info[i].dev.id)
-				ret = -1;
-		}
-		if (ret)
-			goto set_end;
-	}
 
 	if (set_id < 0 && set_id >= NUM_CYLINDERS) {
 		ret = -1;
 		goto set_end;
 	}
+
+	if (set_detect)
+		test_device(&info[set_id].dev);
 
 	if (strlen(set_enc)) {
 		val = enc_val(set_id, set_enc);
@@ -247,12 +229,8 @@ static int do_set(struct func_arg *args)
 			goto set_end;
 	}
 
-	if (set_force)
-		info[set_id].enc.force = set_force;
-
  set_end:
 	set_meg = 0;
-	set_force = 0;
 	memset(set_enc, 0, sizeof(set_enc));
 	set_id = -1;
 	set_detect = 0;
@@ -295,7 +273,7 @@ static struct input_cmd cmd = {
 
 static int reg_cmd(void)
 {
-	if_info = get_interface_info();
+	ctrl = get_interface_info();
 	info = get_motion_info();
 	register_cmd(&cmd);
 	return 0;

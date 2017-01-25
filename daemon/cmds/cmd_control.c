@@ -9,18 +9,14 @@
 #include <stdcmd.h>
 #include <serial.h>
 
-static struct interface_info *info;
+static struct interface_info *ctrl;
 
 unsigned long sys_ms;
 static struct timeval sys_tv;
 
 static int detect_interface_board(void)
 {
-	test_device(&info->dev);
-	if (!info->dev.id) {
-		log_info("Can't detect device for control!\n");
-		return -1;
-	}
+	test_device(&ctrl->dev);
 	return 0;
 }
 
@@ -48,6 +44,8 @@ static int do_update(struct func_arg *args)
 {
 	struct stat s;
 	int ret = 0;
+	int i;
+	char cmd[32];
 
 	ret = stat(update_serial, &s);
 	if (ret) {
@@ -64,8 +62,11 @@ static int do_update(struct func_arg *args)
 		if (serial_err)
 			return -1;
 		dev_err = detect_interface_board();
-		just_run_cmd("motion set,detect=1");
-		just_run_cmd("motion update,mask=0");
+		for (i = 0; i < NUM_CYLINDERS; i++) {
+			memset(cmd, 0, sizeof(cmd));
+			sprintf(cmd, "motion set,id=%d,detect=1", i);
+			just_run_cmd(cmd);
+		}
 	}
 
 	if (dev_err)
@@ -133,7 +134,7 @@ static void refresh_window(void)
 	wprintw(ctrl_win, "%d:%d:%d  %lu\n", sys_time->tm_hour,
 		sys_time->tm_min, sys_time->tm_sec, sys_ms);
 
-	if (!info->dev.id) {
+	if (ctrl->dev.state) {
 		wprintw(ctrl_win, "Interface board does not exise!\n");
 		lock_scr();
 		wrefresh(ctrl_win);
@@ -142,13 +143,13 @@ static void refresh_window(void)
 		return;
 	}
 
-	wprintw(ctrl_win, "vol: %u\n", info->vol);
+	wprintw(ctrl_win, "vol: %u\n", ctrl->vol);
 	wprintw(ctrl_win, "air(auto:%d,eng:%d): %u\n",
-		thread_autoair, info->engine, info->air);
-	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", info->gx, info->gy, info->gz);
-	wprintw(ctrl_win, "thm: %hd\n", info->thermal);
-	wprintw(ctrl_win, "acc: %hd %hd %hd\n", info->ax, info->ay, info->az);
-	wprintw(ctrl_win, "m12: %d\n", info->m12v);
+		thread_autoair, ctrl->engine, ctrl->air);
+	wprintw(ctrl_win, "gyr: %hd %hd %hd\n", ctrl->gx, ctrl->gy, ctrl->gz);
+	wprintw(ctrl_win, "thm: %hd\n", ctrl->thermal);
+	wprintw(ctrl_win, "acc: %hd %hd %hd\n", ctrl->ax, ctrl->ay, ctrl->az);
+	wprintw(ctrl_win, "m12: %d\n", ctrl->m12v);
 	lock_scr();
 	wrefresh(ctrl_win);
 	unlock_scr();
@@ -176,14 +177,14 @@ static int run_engine_onece(void)
 		return -1;
 	}
 
-	if (info->vol < VOLTAGE_LOW) {
+	if (ctrl->vol < VOLTAGE_LOW) {
 		if (lvol_expire == ~0x0)
 			lvol_expire = sys_ms + VOL_EXPIRE;
 		return 0;
 	}
 	lvol_expire = ~0x0;
 
-	if (info->vol > VOLTAGE_OVE) {
+	if (ctrl->vol > VOLTAGE_OVE) {
 		if (hvol_expire == ~0x0)
 			hvol_expire = sys_ms + VOL_EXPIRE;
 		return 0;
@@ -199,23 +200,23 @@ static int run_engine_onece(void)
 		return -1;
 	}
 
-	need_run &= info->air < thread_ah;
-	need_run &= !info->engine;
+	need_run &= ctrl->air < thread_ah;
+	need_run &= !ctrl->engine;
 
 	if (!need_run)
 		return 0;
 
-	run_count = (thread_ah - info->air) * 255 / thread_ah;
+	run_count = (thread_ah - ctrl->air) * 255 / thread_ah;
 	if (run_count < 24)
 		run_count = 24;
 
 	if (megs_on)
 		return 0;
-	info->engine = 1;
+	ctrl->engine = 1;
 
 	log_info("engine_on(%d)\n", run_count);
 	if (engine_on(run_count)) {
-		info->engine = 0;
+		ctrl->engine = 0;
 		return -1;
 	}
 
@@ -344,7 +345,7 @@ static struct input_cmd cmd = {
 
 static int reg_cmd(void)
 {
-	info = get_interface_info();
+	ctrl = get_interface_info();
 	register_cmd(&cmd);
 	do_thread(thread_args);
 	return 0;

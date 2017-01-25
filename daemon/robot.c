@@ -86,8 +86,8 @@ do {	\
 
 #define ASSERT_DEV_OK(dev)	\
 do {	\
-	if (!dev.detected) {	\
-		log_info("%s, no shuch device \n", __FUNCTION__);	\
+	if (dev.state) {	\
+		log_info("%s, device err, state:0x%x\n", __FUNCTION__, dev.state);	\
 		return -1;	\
 	}	\
 } while(0)
@@ -96,18 +96,25 @@ int test_device(struct device *dev)
 {
 	CMD_VAR;
 	char name[16];
+	char id;
 	unsigned short h1, h2;
 
-	if (!dev->ack) {
+	if (!dev->ack || !dev->id) {
 		log_err();
 		return -1;
 	}
-	dev->detected = 0;
+	dev->state = MASK_NODEV;
 
 	ASSERT_SEND_CMD_OK(">%c report;", dev->id);
-	ASSERT_SCAN_CMD_OK(4, dev->ack, name, &dev->detected, &h1, &h2);
+	ASSERT_SCAN_CMD_OK(4, dev->ack, name, &id, &h1, &h2);
 
-	log_info("detect: %s, id: %c\n", name, dev->detected);
+	if (id != dev->id) {
+		log_err();
+		return -1;
+	}
+
+	log_info("detect: %s, id: %c\n", name, id);
+	dev->state = 0;
 	return 0;
 }
 
@@ -275,14 +282,12 @@ int megnet(struct cylinder_info *cy, int count)
 	if (count > 0 && count < 255) {
 		ASSERT_SEND_CMD_OK(">%c inc %2x;", cy->dev.id, count);
 		ASSERT_SCAN_CMD_OK(0, MESSAGE_OK);
-		cy->enc.force = '+';
 		return 0;
 	}
 
 	if (count < 0 && count > -255) {
 		ASSERT_SEND_CMD_OK(">%c dec %2x;", cy->dev.id, abs(count));
 		ASSERT_SCAN_CMD_OK(0, MESSAGE_OK);
-		cy->enc.force = '-';
 		return 0;
 	}
 

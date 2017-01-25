@@ -73,21 +73,8 @@ static int check_id(void *var)
 
 static char set_name[sizeof(((struct target *) 0)->name)];
 static int set_id = -1;
-static char set_force = 0;
 static char set_inactive = 0;
 static unsigned short set_len = 0;
-
-static int check_force(void *var)
-{
-	switch (set_force) {
-	case '+':
-	case '-':
-	case '0':
-		return 0;
-	}
-
-	return -1;
-}
 
 static struct func_arg set_args[] = {
 	{.name = "name",
@@ -97,10 +84,6 @@ static struct func_arg set_args[] = {
 	 .var = &set_id,
 	 .type = "%d",
 	 .check = check_id},
-	{.name = "force",
-	 .var = &set_force,
-	 .type = "%c",
-	 .check = check_force},
 	{.name = "inactive",
 	 .var = &set_inactive,
 	 .type = "%c"},
@@ -141,12 +124,6 @@ static int do_set(struct func_arg *args)
 
 	t->cy[set_id].id = info[set_id].enc.id;
 
-	if (set_force) {
-		if (set_force == '0')
-			set_force = 0;
-		t->cy[set_id].force = set_force;
-	}
-
 	if (set_inactive) {
 		if (set_inactive == '0')
 			set_inactive = 0;
@@ -167,7 +144,6 @@ static int do_set(struct func_arg *args)
 	socket_write_buf(msg, msg_len);
 	memset(set_name, 0, sizeof(set_name));
 	set_id = -1;
-	set_force = 0;
 	set_inactive = 0;
 	set_len = 0;
 	return ret;

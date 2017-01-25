@@ -3,9 +3,12 @@
 
 struct device {
 	char id;
-	char detected;
+	char state;
 	const char *ack;
 };
+
+#define MASK_NODEV		0x1
+#define MASK_ERR		0x2
 
 struct cylinder_info {
 	struct device dev;
@@ -26,9 +29,9 @@ struct cylinder_info {
 
 	struct cy_tag {
 		volatile unsigned char id;
-		char force;
 		char inactive;
 		volatile unsigned short len;
+		int force;
 	} enc;
 
 	volatile unsigned char port;
