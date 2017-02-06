@@ -12,7 +12,7 @@ struct target {
 			unsigned short start_len;
 			unsigned short stop_len;
 			int meg_val;
-			struct transform_record *last; 
+			struct transform_record *last;
 		} *record;
 	} trans[NUM_CYLINDERS];
 	struct target *next;

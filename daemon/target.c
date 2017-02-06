@@ -86,7 +86,7 @@ static void clean_record(struct transform_record *record)
 	struct transform_record *last;
 	struct transform_record *p = record;
 
-	while(p) {
+	while (p) {
 		last = p->last;
 		free(p);
 		p = last;
@@ -138,10 +138,10 @@ static int new_record(struct transform_info *trans)
 		log_system_err(__FUNCTION__);
 		return -1;
 	}
-	
+
 	memset(record, 0, sizeof(*record));
 	if (trans->record)
-		trans->record->last = trans->record;
+		record->last = trans->record;
 	trans->record = record;
 
 	return 0;
@@ -151,7 +151,7 @@ static int new_record(struct transform_info *trans)
 
 static int get_meg_val(int diff, struct transform_record *record)
 {
-	return diff/20;
+	return diff / 20;
 }
 
 int try_transform_once(struct target *tag)
@@ -174,8 +174,8 @@ int try_transform_once(struct target *tag)
 			log_err();
 			goto trans_err;
 		}
-		
-		len_diff = info[i].enc.len - tag->trans[i].cy.len;
+
+		len_diff = tag->trans[i].cy.len - info[i].enc.len;
 		if (abs(len_diff) < TRANS_ACCURACE)
 			continue;
 		err = new_record(&tag->trans[i]);
@@ -183,39 +183,43 @@ int try_transform_once(struct target *tag)
 			log_err();
 			goto trans_err;
 		}
-		
+
 		tag->trans[i].record->start_len = info[i].enc.len;
-		tag->trans[i].record->meg_val = get_meg_val(len_diff, tag->trans[i].record);
+		tag->trans[i].record->meg_val =
+		    get_meg_val(len_diff, tag->trans[i].record);
 		if (!tag->trans[i].record->meg_val)
 			continue;
-		
-		memset(cmd, 0, sizeof(cmd));
-		sprintf(cmd, "motion id=%d,len=%d\n", i, tag->trans[i].record->meg_val);
 
-		err = just_run_cmd(cmd);
+		memset(cmd, 0, sizeof(cmd));
+		sprintf(cmd, "motion set,id=%d,meg=%d", i,
+			tag->trans[i].record->meg_val);
+
+		err = run_cmd(cmd);
 		if (err) {
 			log_err();
 			goto trans_err;
 		}
 	}
-	
+
 	do {
-		usleep(50000);	
-		done = 1;	
+		usleep(50000);
+		done = 1;
 		for (i = 0; i < NUM_CYLINDERS; i++) {
+			if (!tag->trans[i].record)
+				continue;
+
 			if (tag->trans[i].record->stop_len)
 				continue;
-			
-			if(info[i].meg_dir) {
+
+			if (info[i].meg_dir) {
 				done = 0;
 				continue;
 			}
 
 			tag->trans[i].record->stop_len = info[i].enc.len;
 		}
-	} while(!done);
-					
-		
+	} while (!done);
+
 	return 0;
 
  trans_err:

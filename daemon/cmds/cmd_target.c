@@ -177,7 +177,7 @@ static int do_list(struct func_arg *args)
 	int name_len;
 	struct target *t;
 	struct transform_record *record;
-	 struct transform_info *trans;
+	struct transform_info *trans;
 	int nrecord = 0;
 	char msg[256];
 	int msg_len = 0;
@@ -190,8 +190,7 @@ static int do_list(struct func_arg *args)
 		msg_len = 0;
 		t = find_target(NULL);
 		while (t) {
-			msg_len +=
-			    sprintf(&msg[msg_len], "%s", t->name);
+			msg_len += sprintf(&msg[msg_len], "%s", t->name);
 			t = t->next;
 		}
 		msg[msg_len] = '\n';
@@ -212,7 +211,7 @@ static int do_list(struct func_arg *args)
 		record = t->trans[list_id].record;
 		trans = &t->trans[list_id];
 
-		while (record->last) {
+		while (record) {
 			if (nrecord == list_record)
 				break;
 			record = record->last;
@@ -239,7 +238,7 @@ static int do_list(struct func_arg *args)
 		nrecord = 0;
 		record = t->trans[list_id].record;
 
-		while (record->last) {
+		while (record) {
 			record = record->last;
 			nrecord++;
 		}
