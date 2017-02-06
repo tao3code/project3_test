@@ -11,6 +11,7 @@ static struct cylinder_info *info;
 
 static char trans_name[sizeof(((struct target *) 0)->name)];
 static unsigned long trans_expire = MAX_TRANS_EXPIRE_MS;
+static int trans_auto = 0;
 
 static int check_expire(void *var)
 {
@@ -23,10 +24,13 @@ static struct func_arg trans_args[] = {
 	{.name = "name",
 	 .var = trans_name,
 	 .type = "%s"},
-	{.name = "name",
+	{.name = "expire",
 	 .var = &trans_expire,
 	 .type = "%lu",
 	 .check = check_expire},
+	{.name = "auto",
+	 .var = &trans_auto,
+	 .type = "%d"},
 	{0},
 };
 
@@ -53,12 +57,13 @@ static int do_trans(struct func_arg *args)
 		goto end_trans;
 	}
 
-	ret = transform(t, trans_expire);
+	ret = try_transform_once(t);
 
  end_trans:
 	socket_write_buf(msg, msg_len);
 	memset(trans_name, 0, sizeof(trans_name));
 	trans_expire = MAX_TRANS_EXPIRE_MS;
+	trans_auto = 0;
 	return ret;
 }
 
@@ -122,14 +127,14 @@ static int do_set(struct func_arg *args)
 		goto end_set;
 	}
 
-	t->cy[set_id].id = info[set_id].enc.id;
+	t->trans[set_id].cy.id = info[set_id].enc.id;
 
 	if (set_inactive) {
 		if (set_inactive == '0')
 			set_inactive = 0;
 		else
 			set_inactive = 1;
-		t->cy[set_id].inactive = set_inactive;
+		t->trans[set_id].cy.inactive = set_inactive;
 	}
 
 	if (set_len) {
@@ -137,7 +142,7 @@ static int do_set(struct func_arg *args)
 			set_len = ENCODER_OFFSET;
 		if (set_len > ENCODER_OFFSET + info[set_id].mea.c)
 			set_len = ENCODER_OFFSET + info[set_id].mea.c;
-		t->cy[set_id].len = set_len;
+		t->trans[set_id].cy.len = set_len;
 	}
 
  end_set:
@@ -151,6 +156,7 @@ static int do_set(struct func_arg *args)
 
 static char list_name[sizeof(((struct target *) 0)->name)];
 static int list_id = -1;
+static int list_record = 0;
 
 static struct func_arg list_args[] = {
 	{.name = "name",
@@ -160,6 +166,9 @@ static struct func_arg list_args[] = {
 	 .var = &list_id,
 	 .type = "%d",
 	 .check = check_id},
+	{.name = "record",
+	 .var = &list_record,
+	 .type = "%d"},
 	{0},
 };
 
@@ -167,6 +176,9 @@ static int do_list(struct func_arg *args)
 {
 	int name_len;
 	struct target *t;
+	struct transform_record *record;
+	 struct transform_info *trans;
+	int nrecord = 0;
 	char msg[256];
 	int msg_len = 0;
 	int ret = 0;
@@ -178,7 +190,8 @@ static int do_list(struct func_arg *args)
 		msg_len = 0;
 		t = find_target(NULL);
 		while (t) {
-			msg_len += sprintf(&msg[msg_len], "%s ", t->name);
+			msg_len +=
+			    sprintf(&msg[msg_len], "%s", t->name);
 			t = t->next;
 		}
 		msg[msg_len] = '\n';
@@ -195,32 +208,53 @@ static int do_list(struct func_arg *args)
 	}
 
 	if (list_id != -1) {
-		msg_len = sprintf(msg, "%s.cy[%d] = {", t->name, list_id);
-		if (t->cy[list_id].force)
-			msg_len += sprintf(&msg[msg_len], ".force = %c,",
-					   t->cy[list_id].force);
-		if (t->cy[list_id].inactive)
+		nrecord = 0;
+		record = t->trans[list_id].record;
+		trans = &t->trans[list_id];
+
+		while (record->last) {
+			if (nrecord == list_record)
+				break;
+			record = record->last;
+			nrecord++;
+		}
+		msg_len =
+		    sprintf(msg, "%s(%d).cy[%d] = {", t->name, nrecord,
+			    list_id);
+		if (trans->cy.force)
+			msg_len += sprintf(&msg[msg_len], ".force = %d,",
+					   trans->cy.force);
+		if (trans->cy.inactive)
 			msg_len += sprintf(&msg[msg_len], ".inactive = %d,",
-					   t->cy[list_id].inactive);
-		if (t->cy[list_id].len)
+					   trans->cy.inactive);
+		if (trans->cy.len)
 			msg_len += sprintf(&msg[msg_len], ".len = %hu}\n",
-					   t->cy[list_id].len);
+					   trans->cy.len);
 		goto end_list;
 	}
 
-	msg_len = sprintf(msg, "%s:\n", t->name);
+	msg_len = sprintf(msg, "%s(%d):\n", t->name, nrecord);
 
 	for (i = 0; i < NUM_CYLINDERS; i++) {
+		nrecord = 0;
+		record = t->trans[list_id].record;
+
+		while (record->last) {
+			record = record->last;
+			nrecord++;
+		}
 		msg_len += sprintf(&msg[msg_len],
-				   "[%d]{%d, %d, %hu}\n",
-				   i, t->cy[i].force,
-				   t->cy[i].inactive, t->cy[i].len);
+				   "[%d]{%d, %d, %hu}(%d)\n",
+				   i, t->trans[i].cy.force,
+				   t->trans[i].cy.inactive,
+				   t->trans[i].cy.len, nrecord);
 	}
 
  end_list:
 	socket_write_buf(msg, msg_len);
 	memset(list_name, 0, sizeof(list_name));
 	list_id = -1;
+	list_record = 0;
 	return ret;
 }
 

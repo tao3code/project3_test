@@ -11,7 +11,8 @@
 static pthread_mutex_t mtx_head;
 static pthread_mutexattr_t mat_head;
 
-static struct target  *target_head = 0;
+static struct target *target_head = 0;
+static struct cylinder_info *info;
 
 struct target *find_target(char *name)
 {
@@ -19,7 +20,7 @@ struct target *find_target(char *name)
 
 	if (!name)
 		return target_head;
-	
+
 	pthread_mutex_lock(&mtx_head);
 	while (list) {
 		if (strcmp(list->name, name)) {
@@ -55,7 +56,7 @@ int alloc_target(char *name)
 		log_info("target:%s already exist!\n", name);
 		return -1;
 	}
-	
+
 	t = malloc(sizeof(struct target));
 	if (!t) {
 		log_system_err(__FUNCTION__);
@@ -74,11 +75,31 @@ int alloc_target(char *name)
 	pthread_mutex_unlock(&mtx_head);
 
 	return 0;
-	
+
 	free(t);
  alloc_mem:
 	return -1;
-} 
+}
+
+static void clean_record(struct transform_record *record)
+{
+	struct transform_record *last;
+	struct transform_record *p = record;
+
+	while(p) {
+		last = p->last;
+		free(p);
+		p = last;
+	};
+}
+
+static void clean_target(struct target *tag)
+{
+	int i;
+
+	for (i = 0; i < NUM_CYLINDERS; i++)
+		clean_record(tag->trans[i].record);
+}
 
 int free_target(char *name)
 {
@@ -90,7 +111,7 @@ int free_target(char *name)
 	}
 
 	t = find_target(name);
-	if (!t) { 	
+	if (!t) {
 		log_info("free target:%s, not found!\n", name);
 		return -1;
 	}
@@ -103,95 +124,143 @@ int free_target(char *name)
 	else
 		target_head = t->next;
 	pthread_mutex_unlock(&mtx_head);
+	clean_target(t);
 	free(t);
 	return 0;
 }
 
+static int new_record(struct transform_info *trans)
+{
+	struct transform_record *record;
 
-static int target_check(struct target *tag)
+	record = malloc(sizeof(*record));
+	if (!record) {
+		log_system_err(__FUNCTION__);
+		return -1;
+	}
+	
+	memset(record, 0, sizeof(*record));
+	if (trans->record)
+		trans->record->last = trans->record;
+	trans->record = record;
+
+	return 0;
+}
+
+#define TRANS_ACCURACE	20
+
+static int get_meg_val(int diff, struct transform_record *record)
+{
+	return diff/20;
+}
+
+int try_transform_once(struct target *tag)
 {
 	int i;
+	int err = 0;
+	int len_diff;
+	char cmd[256];
+	int done;
 
-	if (!tag)
-		return -1;
 	for (i = 0; i < NUM_CYLINDERS; i++) {
-		if (!tag->cy[i].id)
-			return -1;
-		if (!tag->cy[i].len)
-			return -1;
-	}
+		if (!tag->trans[i].cy.id) {
+			err = -1;
+			log_err();
+			goto trans_err;
+		}
 
+		if (!tag->trans[i].cy.len) {
+			err = -1;
+			log_err();
+			goto trans_err;
+		}
+		
+		len_diff = info[i].enc.len - tag->trans[i].cy.len;
+		if (abs(len_diff) < TRANS_ACCURACE)
+			continue;
+		err = new_record(&tag->trans[i]);
+		if (err) {
+			log_err();
+			goto trans_err;
+		}
+		
+		tag->trans[i].record->start_len = info[i].enc.len;
+		tag->trans[i].record->meg_val = get_meg_val(len_diff, tag->trans[i].record);
+		if (!tag->trans[i].record->meg_val)
+			continue;
+		
+		memset(cmd, 0, sizeof(cmd));
+		sprintf(cmd, "motion id=%d,len=%d\n", i, tag->trans[i].record->meg_val);
+
+		err = just_run_cmd(cmd);
+		if (err) {
+			log_err();
+			goto trans_err;
+		}
+	}
+	
+	do {
+		usleep(50000);	
+		done = 1;	
+		for (i = 0; i < NUM_CYLINDERS; i++) {
+			if (tag->trans[i].record->stop_len)
+				continue;
+			
+			if(info[i].meg_dir) {
+				done = 0;
+				continue;
+			}
+
+			tag->trans[i].record->stop_len = info[i].enc.len;
+		}
+	} while(!done);
+					
+		
 	return 0;
-}
 
-static unsigned try_transform_once(struct target *tag)
-{
-	return 0;
-}
-
-#define TARGET_DIFF_OK	500
-
-int transform(struct target *tag, unsigned long expire)
-{
-	unsigned long timeout_ms;
-	unsigned diff;
-
-	if (target_check(tag)) {
-		log_err();
-		return -1;
-	}
-
-	timeout_ms = sys_ms + expire;
-
-	while (timeout_ms > sys_ms) {
-		diff = try_transform_once(tag);
-		if (diff < TARGET_DIFF_OK)
-			return 0;
-		usleep(50000);
-	}
-
-	log_info("%s time out, diff:%u\n", __FUNCTION__, diff);
-
-	return -1;
+ trans_err:
+	return err;
 }
 
 static int target_init(void)
 {
 	int err;
 
-        err = pthread_mutexattr_init(&mat_head);
-        if (err) {
-                log_system_err(__FUNCTION__);
-                goto init_mattr;
-        }
+	err = pthread_mutexattr_init(&mat_head);
+	if (err) {
+		log_system_err(__FUNCTION__);
+		goto init_mattr;
+	}
 
-        err = pthread_mutex_init(&mtx_head, &mat_head);
-        if (err) {
-                log_system_err(__FUNCTION__);
-                goto init_mutex;
-        }
+	err = pthread_mutex_init(&mtx_head, &mat_head);
+	if (err) {
+		log_system_err(__FUNCTION__);
+		goto init_mutex;
+	}
+
+	info = get_motion_info();
 
 	return 0;
 
-        pthread_mutex_destroy(&mtx_head);
+	pthread_mutex_destroy(&mtx_head);
  init_mutex:
-        pthread_mutexattr_destroy(&mat_head);
+	pthread_mutexattr_destroy(&mat_head);
  init_mattr:
-        return err;
+	return err;
 }
 
 static void target_exit(void)
 {
 	struct target *list = target_head;
 
-        pthread_mutex_destroy(&mtx_head);
-        pthread_mutexattr_destroy(&mat_head);
+	pthread_mutex_destroy(&mtx_head);
+	pthread_mutexattr_destroy(&mat_head);
 
-	while(list) {
+	while (list) {
 		free(list);
 		list = list->next;
 	}
-} 
+}
 
 init_func(target_init);
 exit_func(target_exit);
