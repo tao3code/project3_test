@@ -4,12 +4,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <socket_project3.h>
-#include <input_cmd.h>
 
 static struct sockaddr_in addr;
 static int s;
 
-static char buf[CMDBUF_LEN];
+static struct pj3_socket_msg smsg;
 
 int main(int argc, char *argv[])
 {
@@ -43,27 +42,27 @@ int main(int argc, char *argv[])
 		goto ask_err;
 	}
 
-	ret = read(s, buf, sizeof(buf));
+	ret = read(s, smsg.buf, sizeof(smsg.buf));
 	if (ret <= 0) {
 		perror("ack:");
 		ret = -1;
 		goto ask_err;
 	}
 
-	if (strcmp(buf, SERVER_ACK)) {
-		printf("Is not server:%s\n", buf);
+	if (strcmp(smsg.buf, SERVER_ACK)) {
+		printf("Is not server:%s\n", smsg.buf);
 		ret = -1;
 		goto ask_err;
 	}
 
-	memset(buf, 0, sizeof(buf));
+	memset(&smsg, 0, sizeof(smsg));
 
 	for (i = 1; i < argc; i++) {
-		if (strlen(argv[i]) > sizeof(buf) - len) {
+		if (strlen(argv[i]) > sizeof(smsg.buf) - len) {
 			printf("Exceed, skip: %s\n", argv[i]);
 			break;
 		}
-		len += sprintf(&buf[len], "%s ", argv[i]);
+		len += sprintf(&smsg.buf[len], "%s ", argv[i]);
 	}
 
 	if (len <= 2) {
@@ -71,20 +70,20 @@ int main(int argc, char *argv[])
 		goto no_cmd;
 	}
 
-	buf[len - 1] = 0;
+	smsg.buf[len - 1] = 0;
 
-	ret = write(s, buf, len);
+	ret = write(s, smsg.buf, sizeof(smsg.buf));
 	if (ret <= 0) {
 		perror("write cmd:");
 		ret = -1;
 		goto ask_err;
 	}
 
-	memset(buf, 0, sizeof(buf));
-	ret = read(s, buf, sizeof(buf));
+	memset(&smsg, 0, sizeof(smsg));
+	ret = read(s, &smsg, sizeof(smsg));
 	if (ret > 0) {
-		printf("%s", buf);
-		ret = -1;
+		printf("%s", smsg.buf);
+		ret = smsg.ser_ret;
 	} else
 		ret = 0;
 

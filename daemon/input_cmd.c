@@ -96,14 +96,14 @@ static int serial_send_cmd(int argc, char *argv[])
 	ret = sent_cmd_alloc_response(buf, &res);
 	if (ret < 0) {
 		len = sprintf(help_msg, "operation fail: %s\n", buf);
-		socket_write_buf(help_msg, len);
+		socket_write_msg(ret, help_msg, len);
 		return 0;
 	}
 
 	if (ret == 0)
 		return 0;
 
-	socket_write_buf(res, ret);
+	socket_write_msg(0, res, ret);
 	free(res);
 
 	return 0;
@@ -148,7 +148,7 @@ static int list_all_cmds(char *buf)
 
 	buf[len] = '\n';
 
-	socket_write_buf(buf, len + 1);
+	socket_write_msg(0, buf, len + 1);
 	return 0;
 }
 
@@ -168,7 +168,7 @@ static int do_help(int argc, char *argv[])
 		}
 		if (cmd_list->help) {
 			len = cmd_list->help(help_msg, argc - 1, &argv[1]);
-			socket_write_buf(help_msg, len);
+			socket_write_msg(0, help_msg, len);
 		}
 		return 0;
 	}
@@ -224,17 +224,17 @@ int just_run_cmd(char *cmd_in)
 			continue;
 		}
 		err = cmd_list->func(argc, args);
-		if (err && !socket_write_buf(0, 0)) {
+		if (err && !socket_write_msg(0, 0, 0)) {
 			len =
 			    sprintf(help_msg,
 				    "err: '%s', try 'help %s'\n", cmd, cmd);
-			socket_write_buf(help_msg, len);
+			socket_write_msg(err, help_msg, len);
 		}
 		return err;
 	}
 
 	len = sprintf(help_msg, "unknow: '%s', try 'help'\n", cmd);
-	socket_write_buf(help_msg, len);
+	socket_write_msg(-1, help_msg, len);
 
 	return -1;
 }

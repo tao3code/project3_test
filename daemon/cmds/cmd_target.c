@@ -60,7 +60,7 @@ static int do_trans(struct func_arg *args)
 	ret = try_transform_once(t);
 
  end_trans:
-	socket_write_buf(msg, msg_len);
+	socket_write_msg(ret, msg, msg_len);
 	memset(trans_name, 0, sizeof(trans_name));
 	trans_expire = MAX_TRANS_EXPIRE_MS;
 	trans_auto = 0;
@@ -146,7 +146,7 @@ static int do_set(struct func_arg *args)
 	}
 
  end_set:
-	socket_write_buf(msg, msg_len);
+	socket_write_msg(ret, msg, msg_len);
 	memset(set_name, 0, sizeof(set_name));
 	set_id = -1;
 	set_inactive = 0;
@@ -250,7 +250,7 @@ static int do_list(struct func_arg *args)
 	}
 
  end_list:
-	socket_write_buf(msg, msg_len);
+	socket_write_msg(ret, msg, msg_len);
 	memset(list_name, 0, sizeof(list_name));
 	list_id = -1;
 	list_record = 0;
@@ -298,7 +298,7 @@ static int do_free(struct func_arg *args)
 	msg_len = sprintf(msg, "target '%s' is freed!\n", free_name);
 
  end_free:
-	socket_write_buf(msg, msg_len);
+	socket_write_msg(ret, msg, msg_len);
 	memset(free_name, 0, sizeof(free_name));
 	return ret;
 }
@@ -345,7 +345,7 @@ static int do_alloc(struct func_arg *args)
 	msg_len = sprintf(msg, "alloc target '%s' success!\n", alloc_name);
 
  end_alloc:
-	socket_write_buf(msg, msg_len);
+	socket_write_msg(ret, msg, msg_len);
 	memset(alloc_name, 0, sizeof(alloc_name));
 	return ret;
 }

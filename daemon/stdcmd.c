@@ -19,7 +19,7 @@ static void gen_err(const char *str, const char *in, const char *ep)
 	memcpy(&err_msg[len], in, pos + 1);
 	len += pos;
 	len += sprintf(&err_msg[len], "(%s)%s\n", str, ep);
-	socket_write_buf(err_msg, len);
+	socket_write_msg(-1, err_msg, len);
 }
 
 static void pop_len(const char *start, int *key_len, char *key_out)

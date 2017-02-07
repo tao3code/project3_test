@@ -12,7 +12,7 @@ static struct sockaddr_in client_addr;
 static int server_fd, ncon;
 static int client_fd = -1;
 
-char socket_buf[256];
+static struct pj3_socket_msg smsg;
 
 #define LISTEN_BACKLOG 4
 
@@ -71,14 +71,14 @@ int socket_wait_client(void)
 		goto end_wait;
 	}
 
-	memset(socket_buf, 0, sizeof(socket_buf));
-	ret = read(client_fd, socket_buf, sizeof(socket_buf));
+	memset(&smsg, 0, sizeof(smsg));
+	ret = read(client_fd, smsg.buf, sizeof(smsg.buf));
 	if (ret <= 0) {
 		log_system_err("Socket hand shake read");
 		goto end_wait;
 	}
 
-	if (strcmp(socket_buf, CLIENT_ASK)) {
+	if (strcmp(smsg.buf, CLIENT_ASK)) {
 		log_err();
 		ret = -1;
 		goto end_wait;
@@ -90,25 +90,24 @@ int socket_wait_client(void)
 		goto end_wait;
 	}
 
-	memset(socket_buf, 0, sizeof(socket_buf));
+	memset(&smsg, 0, sizeof(smsg));
 	return 0;
  end_wait:
 	close(client_fd);
 	client_fd = -1;
-	memset(socket_buf, 0, sizeof(socket_buf));
+	memset(&smsg, 0, sizeof(smsg));
 	return ret;
 }
 
 void socket_end_client(void)
 {
 	int ret;
-	if (strlen(socket_buf)) {
-		ret = write(client_fd, socket_buf, sizeof(socket_buf));
+	if (strlen(smsg.buf)) {
+		ret = write(client_fd, &smsg, sizeof(smsg));
 		if (ret < 0)
 			log_system_err("Socket close msg");
 	}
 
-	memset(socket_buf, 0, sizeof(socket_buf));
 	close(client_fd);
 	client_fd = -1;
 }
@@ -116,8 +115,6 @@ void socket_end_client(void)
 int socket_read_client(char *buf, int len)
 {
 	int ret;
-
-	memset(buf, 0, len);
 
 	memset(buf, 0, len);
 
@@ -130,16 +127,19 @@ int socket_read_client(char *buf, int len)
 	return ret;
 }
 
-int socket_write_buf(char *buf, int len)
+int socket_write_msg(int ret, char *buf, int len)
 {
 	int buf_len;
 
-	buf_len = strlen(socket_buf);
+	if (ret)
+		smsg.ser_ret = ret;
+
+	buf_len = strlen(smsg.buf);
 	if (!buf)
 		return buf_len;
 
-	if (buf_len + len >= sizeof(socket_buf))
+	if (buf_len + len >= sizeof(smsg.buf))
 		return buf_len;
-	memcpy(&socket_buf[buf_len], buf, len);
+	memcpy(&smsg.buf[buf_len], buf, len);
 	return buf_len + len;
 }
