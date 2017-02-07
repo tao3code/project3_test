@@ -257,13 +257,13 @@ static void target_exit(void)
 {
 	struct target *list = target_head;
 
-	pthread_mutex_destroy(&mtx_head);
-	pthread_mutexattr_destroy(&mat_head);
-
 	while (list) {
-		free(list);
+		free_target(list->name);
 		list = list->next;
 	}
+
+	pthread_mutex_destroy(&mtx_head);
+	pthread_mutexattr_destroy(&mat_head);
 }
 
 init_func(target_init);
