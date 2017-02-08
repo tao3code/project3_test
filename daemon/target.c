@@ -81,7 +81,7 @@ int alloc_target(char *name)
 	return -1;
 }
 
-static void clean_record(struct transform_record *record)
+static void clean_records(struct transform_record *record)
 {
 	struct transform_record *last;
 	struct transform_record *p = record;
@@ -98,7 +98,7 @@ static void clean_target(struct target *tag)
 	int i;
 
 	for (i = 0; i < NUM_CYLINDERS; i++)
-		clean_record(tag->trans[i].record);
+		clean_records(tag->trans[i].record);
 }
 
 int free_target(char *name)
@@ -174,14 +174,16 @@ int try_transform_once(struct target *tag)
 			log_err();
 			goto trans_err;
 		}
+	}
 
+	for (i = 0; i < NUM_CYLINDERS; i++) {
 		len_diff = tag->trans[i].cy.len - info[i].enc.len;
 		if (abs(len_diff) < TRANS_ACCURACE)
 			continue;
 		err = new_record(&tag->trans[i]);
 		if (err) {
 			log_err();
-			goto trans_err;
+			break;
 		}
 
 		tag->trans[i].record->start_len = info[i].enc.len;
@@ -197,7 +199,7 @@ int try_transform_once(struct target *tag)
 		err = run_cmd(cmd);
 		if (err) {
 			log_err();
-			goto trans_err;
+			break;
 		}
 	}
 
