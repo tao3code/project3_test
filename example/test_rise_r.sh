@@ -1,3 +1,4 @@
+set -e
 ./pj3cmd target alloc,name=rise_r
 
 ./pj3cmd target set,name=rise_r,id=0,len=350

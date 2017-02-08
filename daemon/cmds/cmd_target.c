@@ -156,7 +156,7 @@ static int do_set(struct func_arg *args)
 
 static char list_name[sizeof(((struct target *) 0)->name)];
 static int list_id = -1;
-static int list_record = 0;
+static int list_record = -1;
 
 static struct func_arg list_args[] = {
 	{.name = "name",
@@ -207,19 +207,8 @@ static int do_list(struct func_arg *args)
 	}
 
 	if (list_id != -1) {
-		nrecord = 0;
-		record = t->trans[list_id].record;
 		trans = &t->trans[list_id];
-
-		while (record) {
-			if (nrecord == list_record)
-				break;
-			record = record->last;
-			nrecord++;
-		}
-		msg_len =
-		    sprintf(msg, "%s(%d).cy[%d] = {", t->name, nrecord,
-			    list_id);
+		msg_len = sprintf(msg, "%s.trans[%d].cy = {", t->name, list_id);
 		if (trans->cy.force)
 			msg_len += sprintf(&msg[msg_len], ".force = %d,",
 					   trans->cy.force);
@@ -227,16 +216,41 @@ static int do_list(struct func_arg *args)
 			msg_len += sprintf(&msg[msg_len], ".inactive = %d,",
 					   trans->cy.inactive);
 		if (trans->cy.len)
-			msg_len += sprintf(&msg[msg_len], ".len = %hu}\n",
+			msg_len += sprintf(&msg[msg_len], ".len = %hu,",
 					   trans->cy.len);
+		nrecord = 0;
+		record = t->trans[list_id].record;
+
+		while (record) {
+			if (nrecord == list_record)
+				break;
+			record = record->last;
+			nrecord++;
+		}
+
+		if (list_record != -1) {
+			if (!record) {
+				msg_len += sprintf(&msg[msg_len],
+						   ".record[%d] = NULL}\n",
+						   list_record);
+				goto end_list;
+			}
+
+			msg_len += sprintf(&msg[msg_len], ".record[%d] = "
+					   "{%hu~%hu,%d}}\n",
+					   list_record,
+					   record->start_len,
+					   record->stop_len, record->meg_val);
+			goto end_list;
+		}
+
+		msg_len += sprintf(&msg[msg_len], ".record[%d]}\n", nrecord);
 		goto end_list;
 	}
 
-	msg_len = sprintf(msg, "%s(%d):\n", t->name, nrecord);
-
 	for (i = 0; i < NUM_CYLINDERS; i++) {
 		nrecord = 0;
-		record = t->trans[list_id].record;
+		record = t->trans[i].record;
 
 		while (record) {
 			record = record->last;
@@ -253,7 +267,7 @@ static int do_list(struct func_arg *args)
 	socket_write_msg(ret, msg, msg_len);
 	memset(list_name, 0, sizeof(list_name));
 	list_id = -1;
-	list_record = 0;
+	list_record = -1;
 	return ret;
 }
 
